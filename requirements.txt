@@ -1,0 +1,8 @@
+sqlalchemy
+alembic
+streamlit
+bcrypt
+streamlit_option_menu
+dotenv
+psycopg2-binary
+supabase

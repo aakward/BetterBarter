@@ -1,0 +1,26 @@
+# Ignore Python bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Ignore virtual environments
+venv/
+env/
+
+# Ignore IDE/editor files
+*.idea/
+*.vscode/
+*.swp
+
+# Ignore Alembic database URL secrets
+alembic.ini  # optional if you store real DB URL in here
+.env         # if you use environment variables for secrets
+
+# Keep migrations scripts (you DO want these!)
+!migrations/
+!migrations/versions/
+
+# macOS filesystem artifacts
+.DS_Store
+
+.env
