@@ -17,7 +17,7 @@ def main():
         return
 
     # Get current profile
-    profile_id = auth.get_current_user_id()
+    profile_id = auth.get_current_profile_id()
     profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
     if not profile:
         st.error("Profile not found.")

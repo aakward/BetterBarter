@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from data import models
+from data.models import Profile, Offer, Request
 
 def is_nearby(postal1: str, postal2: str, level: int = 3) -> bool:
     """Check if two postal codes are 'nearby' based on first N digits."""
@@ -7,56 +7,63 @@ def is_nearby(postal1: str, postal2: str, level: int = 3) -> bool:
         return False
     return postal1[:level] == postal2[:level]
 
-def find_matches_for_user(db: Session, user_id: int, max_results: int = 10, proximity_level: int = 2):
+def find_matches_for_user(
+    db: Session,
+    profile_id: str,
+    max_results: int = 10,
+    proximity_level: int = 2
+):
     """
-    Find potential matches for a user:
-    - Match user's offers to other users' requests
-    - Match user's requests to other users' offers
+    Find potential matches for a profile:
+    - Match profile's offers to other profiles' requests
+    - Match profile's requests to other profiles' offers
     Returns a list of dictionaries with details for UI.
     """
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
+    profile = db.query(Profile).filter(Profile.id == profile_id).first()
+    if not profile:
         return []
 
     matches = []
 
-    # --- Match offers to requests ---
-    for offer in user.offers:
+    # --- Match profile's offers to other profiles' requests ---
+    for offer in profile.offers:
         potential_requests = (
-            db.query(models.Request)
-            .filter(models.Request.user_id != user_id)
-            .filter(models.Request.title.ilike(f"%{offer.title}%"))
+            db.query(Request)
+            .join(Profile, Profile.id == Request.profile_id)
+            .filter(Request.profile_id != profile_id)
+            .filter(Request.title.ilike(f"%{offer.title}%"))
             .all()
         )
         for req in potential_requests:
-            score = 1.0 if is_nearby(user.postal_code, req.user.postal_code, level=proximity_level) else 0.5
+            score = 1.0 if is_nearby(profile.postal_code, req.profile.postal_code, level=proximity_level) else 0.5
             matches.append({
                 "offer_title": offer.title,
-                "offer_user_name": user.name,
-                "offer_postal": user.postal_code,
+                "offer_profile_name": profile.full_name,
+                "offer_postal": profile.postal_code,
                 "request_title": req.title,
-                "request_user_name": req.user.name,
-                "request_postal": req.user.postal_code,
+                "request_profile_name": req.profile.full_name,
+                "request_postal": req.profile.postal_code,
                 "score": score
             })
 
-    # --- Match requests to offers ---
-    for req in user.requests:
+    # --- Match profile's requests to other profiles' offers ---
+    for req in profile.requests:
         potential_offers = (
-            db.query(models.Offer)
-            .filter(models.Offer.user_id != user_id)
-            .filter(models.Offer.title.ilike(f"%{req.title}%"))
+            db.query(Offer)
+            .join(Profile, Profile.id == Offer.profile_id)
+            .filter(Offer.profile_id != profile_id)
+            .filter(Offer.title.ilike(f"%{req.title}%"))
             .all()
         )
         for offer in potential_offers:
-            score = 1.0 if is_nearby(user.postal_code, offer.user.postal_code, level=proximity_level) else 0.5
+            score = 1.0 if is_nearby(profile.postal_code, offer.profile.postal_code, level=proximity_level) else 0.5
             matches.append({
                 "offer_title": offer.title,
-                "offer_user_name": offer.user.name,
-                "offer_postal": offer.user.postal_code,
+                "offer_profile_name": offer.profile.full_name,
+                "offer_postal": offer.profile.postal_code,
                 "request_title": req.title,
-                "request_user_name": user.name,
-                "request_postal": user.postal_code,
+                "request_profile_name": profile.full_name,
+                "request_postal": profile.postal_code,
                 "score": score
             })
 

@@ -12,10 +12,10 @@ def main():
         st.stop()
 
     db = next(get_db())
-    user_id = auth.get_current_user_id()
+    profile_id = auth.get_current_profile_id()
 
     # Fetch matches (from a matching service)
-    matches = matching.find_matches_for_user(db, user_id=user_id)
+    matches = matching.find_matches_for_user(db, profile_id=profile_id)
 
     if not matches:
         st.info("No matches found at the moment. Check back later!")

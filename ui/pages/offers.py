@@ -8,13 +8,13 @@ def main():
 
     if "rerun_flag" not in st.session_state:
         st.session_state["rerun_flag"] = False
-        
+
     if not auth.is_authenticated():
         st.warning("You need to log in to view or create offers.")
         st.stop()
 
     db = next(get_db())
-    profile_id = auth.get_current_user_id()
+    profile_id = auth.get_current_profile_id()
 
     # -------------------------
     # Create a new offer

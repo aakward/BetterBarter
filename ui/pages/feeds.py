@@ -23,7 +23,7 @@ def main():
         else:
             for r in requests:
                 st.markdown(
-                    f"**{r.title}**\n\n{r.description or 'No description'}\n\n📍 Location: {r.location or 'N/A'}"
+                    f"**{r.title}**\n\n{r.description or 'No description'}\n\n📍 Location: {r.profile.postal_code or 'N/A'}"
                 )
                 st.divider()
 
@@ -34,7 +34,7 @@ def main():
         else:
             for o in offers:
                 st.markdown(
-                    f"**{o.title}**\n\n{o.description or 'No description'}\n\n📍 Location: {o.location or 'N/A'}"
+                    f"**{o.title}**\n\n{o.description or 'No description'}\n\n📍 Location: {o.profile.postal_code or 'N/A'}"
                 )
                 st.divider()
 

@@ -8,7 +8,7 @@ def is_authenticated() -> bool:
     return SESSION_KEY in st.session_state
 
 
-def get_current_user_id():
+def get_current_profile_id():
     """Get the current user's Supabase user ID from session."""
     return st.session_state.get(SESSION_KEY)
 
