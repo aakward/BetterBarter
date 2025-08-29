@@ -1,6 +1,7 @@
 import streamlit as st
 from ui.pages import login, profile, offers, requests, matches, feeds
 from streamlit_option_menu import option_menu
+from sqlalchemy import create_engine
 
 
 # -----------------------------
@@ -37,7 +38,7 @@ def set_sidebar():
 
     st.sidebar.markdown("---")
 
-    st.markdown(f"**App Version:** 1.0.0")
+    st.sidebar.markdown(f"**App Version:** 1.0.0")
 
     return selected
 
@@ -48,6 +49,16 @@ def main():
 
     # Render selected page
     page.main()
+
+    db_conf = st.secrets["SUPABASE_DB_URL"]
+    engine = create_engine(db_conf)
+
+    try:
+        with engine.connect() as conn:
+            result = conn.execute("SELECT 1")
+            st.success(f"Connected! Result: {result.fetchone()[0]}")
+    except Exception as e:
+        st.error(f"Connection failed: {e}")
 
 if __name__ == "__main__":
     main()
