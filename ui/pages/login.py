@@ -73,7 +73,7 @@ def main():
                     st.error("Passwords do not match.")
                 else:
                     # Create user in Supabase
-                    supabase_user = supabase.auth.admin.create_user(
+                    supabase_user = supabase.auth.sign_up(
                         {
                             "email": email,
                             "password": password,
