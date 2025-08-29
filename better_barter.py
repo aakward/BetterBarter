@@ -1,19 +1,19 @@
 import streamlit as st
-from ui.pages import login, profile, offers, requests, matches, feeds
+from ui.pages import login_ipv4, profile_ipv4, offers_ipv4, requests_ipv4, matches_ipv4, feeds_ipv4
 from streamlit_option_menu import option_menu
-from supabase import create_client, Client
+
 
 
 # -----------------------------
 # App Navigation
 # -----------------------------
 PAGES = {
-    "Login / Register": login,
-    "Profile": profile,
-    "My Offers": offers,
-    "My Requests": requests,
-    "Matches": matches,
-    "Community Feed": feeds
+    "Login / Register": login_ipv4,
+    "Profile": profile_ipv4,
+    "My Offers": offers_ipv4,
+    "My Requests": requests_ipv4,
+    "Matches": matches_ipv4,
+    "Community Feed": feeds_ipv4
 }
 
 def set_sidebar():
@@ -38,7 +38,7 @@ def set_sidebar():
 
     st.sidebar.markdown("---")
 
-    st.sidebar.markdown(f"**App Version:** 1.0.1")
+    st.sidebar.markdown(f"**App Version:** 1.0.2")
 
     return selected
 
@@ -49,16 +49,6 @@ def main():
 
     # Render selected page
     page.main()
-
-    supabase: Client = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_ANON_KEY"])
-
-    response = supabase.table("profiles").select("*").limit(1).execute()
-        
-    if response.data is not None:
-        st.write("✅ Connection successful! Sample row:")
-        st.write(response.data)
-    else:
-        st.write("⚠️ Connected, but no data returned from table 'profiles'.")
 
 
 if __name__ == "__main__":
