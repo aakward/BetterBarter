@@ -45,11 +45,20 @@ def main():
     # -------------------------
     st.subheader("My Requests")
     requests = db.query(crud.models.Request).filter(crud.models.Request.profile_id == profile_id).all()
+    
     if requests:
         for r in requests:
             st.write(f"**{r.title}** - {r.category}")
             st.write(r.description)
             st.write(f"Active: {r.is_active}")
+
+            # Delete button
+            delete_key = f"delete_request_{r.id}"
+            if st.button("Delete", key=delete_key):
+                crud.delete_request(db, r.id)
+                st.success(f"Request '{r.title}' has been deleted.")
+                helpers.rerun()
+
             st.write("---")
     else:
         st.info("You have no requests yet.")

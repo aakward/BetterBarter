@@ -3,15 +3,17 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 import os
 from dotenv import load_dotenv  
 from pathlib import Path
+import streamlit as st
 
-env_path = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(dotenv_path=env_path)
+
+#env_path = Path(__file__).resolve().parent.parent / ".env"
+#load_dotenv(dotenv_path=env_path)
 
 Base = declarative_base()
 
-DATABASE_URL = os.getenv("SUPABASE_DB_URL")
+DATABASE_URL = st.secrets["SUPABASE_DB_URL"] #os.getenv("SUPABASE_DB_URL")
 if not DATABASE_URL:
-    raise RuntimeError("SUPABASE_DB_URL is not set. Check your .env file.")
+    raise RuntimeError("SUPABASE_DB_URL is not set. Check your .env/streamlit secrets file.")
 
 print(f"Connecting to database at {DATABASE_URL}")
 

@@ -6,10 +6,12 @@ from data import models
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+import streamlit as st
+
 
 # Load .env explicitly
-env_path = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(dotenv_path=env_path)
+# env_path = Path(__file__).resolve().parent.parent / ".env"
+# load_dotenv(dotenv_path=env_path)
 
 # Alembic config
 config = context.config
@@ -20,9 +22,9 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 # Get database URL from .env
-DATABASE_URL = os.getenv("SUPABASE_DB_URL")
+DATABASE_URL = st.secrets["SUPABASE_DB_URL"] #os.getenv("SUPABASE_DB_URL")
 if not DATABASE_URL:
-    raise RuntimeError("SUPABASE_DB_URL is not set in .env")
+    raise RuntimeError("SUPABASE_DB_URL is not set in .env/streamlit secrets")
 
 def run_migrations_offline() -> None:
     url = DATABASE_URL

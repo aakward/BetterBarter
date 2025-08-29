@@ -45,11 +45,20 @@ def main():
     # -------------------------
     st.subheader("My Offers")
     offers = db.query(crud.models.Offer).filter(crud.models.Offer.profile_id == profile_id).all()
+    
     if offers:
         for o in offers:
             st.write(f"**{o.title}** - {o.category}")
             st.write(o.description)
             st.write(f"Active: {o.is_active}")
+
+            # Delete button
+            delete_key = f"delete_offer_{o.id}"
+            if st.button("Delete", key=delete_key):
+                crud.delete_offer(db, o.id)
+                st.success(f"Offer '{o.title}' has been deleted.")
+                helpers.rerun()
+
             st.write("---")
     else:
         st.info("You have no offers yet.")
