@@ -11,7 +11,7 @@ def find_matches_for_user(
     db: Session,
     profile_id: str,
     max_results: int = 10,
-    proximity_level: int = 2
+    proximity_level: int = 3
 ):
     """
     Find potential matches for a profile:
