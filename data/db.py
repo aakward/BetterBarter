@@ -1,19 +1,28 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-import os
-from dotenv import load_dotenv  
-from pathlib import Path
+import socket
 import streamlit as st
-
-
-#env_path = Path(__file__).resolve().parent.parent / ".env"
-#load_dotenv(dotenv_path=env_path)
 
 Base = declarative_base()
 
-DATABASE_URL = st.secrets["SUPABASE_DB_URL"] #os.getenv("SUPABASE_DB_URL")
+# Force IPv4 for Streamlit Cloud (avoids IPv6 connection issue)
+original_getaddrinfo = socket.getaddrinfo
+def getaddrinfo_ipv4(*args, **kwargs):
+    results = original_getaddrinfo(*args, **kwargs)
+    return [r for r in results if r[0] == socket.AF_INET]
+socket.getaddrinfo = getaddrinfo_ipv4
+
+# Get database URL from Streamlit secrets
+DATABASE_URL = st.secrets["SUPABASE_DB_URL"]
 if not DATABASE_URL:
-    raise RuntimeError("SUPABASE_DB_URL is not set. Check your .env/streamlit secrets file.")
+    raise RuntimeError("SUPABASE_DB_URL is not set. Check your Streamlit secrets file.")
+
+# Ensure SSL is required for Supabase
+if "sslmode=" not in DATABASE_URL:
+    if "?" in DATABASE_URL:
+        DATABASE_URL += "&sslmode=require"
+    else:
+        DATABASE_URL += "?sslmode=require"
 
 print(f"Connecting to database at {DATABASE_URL}")
 
