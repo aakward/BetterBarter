@@ -35,6 +35,10 @@ def set_sidebar():
         unsafe_allow_html=True
     )
 
+    st.sidebar.markdown("---")
+
+    st.markdown(f"**App Version:** 1.0.0")
+
     return selected
 
 def main():
