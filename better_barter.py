@@ -1,7 +1,7 @@
 import streamlit as st
 from ui.pages import login, profile, offers, requests, matches, feeds
 from streamlit_option_menu import option_menu
-from sqlalchemy import create_engine
+from supabase import create_client, Client
 
 
 # -----------------------------
@@ -50,15 +50,16 @@ def main():
     # Render selected page
     page.main()
 
-    db_conf = st.secrets["SUPABASE_DB_URL"]
-    engine = create_engine(db_conf)
+    supabase: Client = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_ANON_KEY"])
 
-    try:
-        with engine.connect() as conn:
-            result = conn.execute("SELECT 1")
-            st.success(f"Connected! Result: {result.fetchone()[0]}")
-    except Exception as e:
-        st.error(f"Connection failed: {e}")
+    response = supabase.table("profiles").select("*").limit(1).execute()
+        
+    if response.data is not None:
+        st.write("✅ Connection successful! Sample row:")
+        st.write(response.data)
+    else:
+        st.write("⚠️ Connected, but no data returned from table 'profiles'.")
+
 
 if __name__ == "__main__":
     main()
