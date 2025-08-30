@@ -38,7 +38,7 @@ def set_sidebar():
 
     st.sidebar.markdown("---")
 
-    st.sidebar.markdown(f"**App Version:** 1.0.2")
+    st.sidebar.markdown(f"**App Version:** 1.0.3")
 
     return selected
 

@@ -23,7 +23,7 @@ def main():
     with st.form("request_form"):
         title = st.text_input("Title")
         description = st.text_area("Description")
-        category = st.text_input("Category")
+        category = st.selectbox("Category", helpers.CATEGORIES)
         submitted = st.form_submit_button("Add Request")
 
         if submitted:

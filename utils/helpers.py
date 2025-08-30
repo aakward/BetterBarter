@@ -41,3 +41,43 @@ def send_match_email(to_email: str, from_name: str, offer_title: str, request_ti
         server.starttls()
         server.login("your-email@domain.com", "your-password")
         server.send_message(msg)
+
+CATEGORIES = [
+    "Antiques",
+    "Art",
+    "Audio",
+    "TV",
+    "Cars/Auto",
+    "Auto Parts",
+    "Car Miscellaneous",
+    "Books",
+    "Caravans and Camping",
+    "CDs/DVDs",
+    "Computers/Hardware",
+    "Software",
+    "Contacts and Messages",
+    "Services/Professionals",
+    "Animals and Accessories",
+    "DIY/Renovation",
+    "Bicycles/Mopeds",
+    "Hobby and Leisure",
+    "Furnitures",
+    "Household Items",
+    "Houses and Rooms",
+    "Children/Babies",
+    "Clothing - Women",
+    "Clothing - Men",
+    "Music and Instruments",
+    "Stamps/Coins & Collectibles",
+    "Jewellery/Bags and Accessories",
+    "Game Consoles and Games",
+    "Sports/Fitness",
+    "Tickets",
+    "Garden and Terrace",
+    "Vacancies",
+    "Holiday",
+    "Water Sports and Boats",
+    "Electronics",
+    "Business Goods",
+    "Miscellaneous"
+]
