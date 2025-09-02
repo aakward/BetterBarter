@@ -2,8 +2,12 @@ from supabase import Client as SupabaseClient
 from utils import auth, helpers
 import datetime
 from data.models import MatchStatus
+import re
 
 MAX_MATCH_REQUESTS_PER_DAY = 3  # adjustable
+REQUEST_BUCKET_NAME = "request-images"
+OFFER_BUCKET_NAME = "offer-images"
+
 
 # -----------------------------
 # PROFILE CRUD
@@ -90,12 +94,27 @@ def update_offer(supabase_client: SupabaseClient, offer_id: int, **kwargs):
 
 
 def delete_offer(supabase_client: SupabaseClient, offer_id: int):
-    # Get offer to adjust karma
-    offer = supabase_client.table("offers").select("*").eq("id", offer_id).execute().data
-    if offer:
-        add_karma(supabase_client, offer[0]["profile_id"], points=-3)
-    response = supabase_client.table("offers").delete().eq("id", offer_id).execute()
-    return response.data[0] if response.data else None
+    response = supabase_client.table("offers").select("*").eq("id", offer_id).execute().data
+    offers = response.data or []
+
+    if not offers:
+        return None
+    
+    offer=offers[0]
+
+    add_karma(supabase_client, offer["profile_id"], points=-3)
+    
+    # Delete image from storage if exists
+    image_file_name = offer.get("image_file_name")
+    if image_file_name:
+        try:
+            supabase_client.storage.from_(OFFER_BUCKET_NAME).remove([image_file_name])
+        except Exception as e:
+            print(f"Warning: could not delete image {image_file_name}: {e}")
+
+    # Delete the request from DB
+    del_response = supabase_client.table("offers").delete().eq("id", offer_id).execute()
+    return del_response.data[0] if del_response.data else None
 
 
 def mark_offer_matched(supabase_client: SupabaseClient, offer_id: int):
@@ -108,14 +127,16 @@ def mark_offer_matched(supabase_client: SupabaseClient, offer_id: int):
 # -----------------------------
 # REQUEST CRUD
 # -----------------------------
-def create_request(supabase_client: SupabaseClient, profile_id: str, title: str, description: str = None, category: str = None):
+def create_request(supabase_client: SupabaseClient, profile_id: str, title: str, description: str = None, category: str = None, image_file_name: str = None):
     request_data = {
         "profile_id": profile_id,
         "title": title,
         "description": description,
         "category": category,
-        "is_active": True
+        "is_active": True,
     }
+    if image_file_name:
+        request_data["image_file_name"] = image_file_name
     response = supabase_client.table("requests").insert(request_data).execute()
     add_karma(supabase_client, profile_id, points=1)
     return response.data[0] if response.data else None
@@ -132,15 +153,33 @@ def get_requests(supabase_client: SupabaseClient, exclude_profile_id: str = None
 def update_request(supabase_client: SupabaseClient, request_id: int, **kwargs):
     response = supabase_client.table("requests").update(kwargs).eq("id", request_id).execute()
     return response.data[0] if response.data else None
+    
 
 
 def delete_request(supabase_client: SupabaseClient, request_id: int):
-    request = supabase_client.table("requests").select("*").eq("id", request_id).execute().data
-    if request:
-        add_karma(supabase_client, request[0]["profile_id"], points=-1)
-    response = supabase_client.table("requests").delete().eq("id", request_id).execute()
-    return response.data[0] if response.data else None
+    # Fetch the request
+    response = supabase_client.table("requests").select("*").eq("id", request_id).execute()
+    requests = response.data or []
 
+    if not requests:
+        return None
+
+    request = requests[0]
+
+    # Deduct karma
+    add_karma(supabase_client, request["profile_id"], points=-1)
+
+    # Delete image from storage if exists
+    image_file_name = request.get("image_file_name")
+    if image_file_name:
+        try:
+            supabase_client.storage.from_(REQUEST_BUCKET_NAME).remove([image_file_name])
+        except Exception as e:
+            print(f"Warning: could not delete image {image_file_name}: {e}")
+
+    # Delete the request from DB
+    del_response = supabase_client.table("requests").delete().eq("id", request_id).execute()
+    return del_response.data[0] if del_response.data else None
 
 def mark_request_matched(supabase_client: SupabaseClient, request_id: int):
     request = supabase_client.table("requests").update({"is_active": False}).eq("id", request_id).execute()

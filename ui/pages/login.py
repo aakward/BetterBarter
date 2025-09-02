@@ -19,14 +19,18 @@ def main():
     db = next(get_db())
 
     # Already logged in
-    if auth.is_authenticated():
-        profile_id = auth.get_current_profile_id()
-        profile = db.query(crud.models.Profile).filter(crud.models.Profile.id == profile_id).first()
-        st.success(f"Welcome back, **{profile.full_name}**!")
+    try:
+        user = auth.ensure_authenticated(db)
+        profile = crud.get_profile(db, user.id)
+        if profile:
+            st.success(f"Welcome back, **{profile['full_name']}**!")
         if st.button("Log out"):
             auth.logout_user()
             helpers.rerun()
         st.stop()
+    except Exception:
+        # Not logged in (ensure_authenticated failed)
+        pass
 
     # Tabs for Login / Register
     tab1, tab2 = st.tabs(["Login", "Register"])

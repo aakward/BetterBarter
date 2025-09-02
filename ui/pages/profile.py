@@ -12,12 +12,10 @@ def main():
 
     db = next(get_db())
 
-    if not auth.is_authenticated():
-        st.warning("You need to log in first.")
-        return
+    user = auth.ensure_authenticated(db)  # this will refresh/validate session
+    profile_id = user.id
 
     # Get current profile
-    profile_id = auth.get_current_profile_id()
     profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
     if not profile:
         st.error("Profile not found.")

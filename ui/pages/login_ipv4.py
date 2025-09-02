@@ -16,20 +16,23 @@ def main():
     if "rerun_flag" not in st.session_state:
         st.session_state["rerun_flag"] = False
 
-    db = get_db()  # Supabase client
+    db = get_db()
 
     # -------------------------
-    # Already logged in
+    # Already logged in (refresh session if needed)
     # -------------------------
-    if auth.is_authenticated():
-        profile_id = auth.get_current_profile_id()
-        profile = crud.get_profile(db, profile_id)
+    try:
+        #user = auth.ensure_authenticated(db)
+        profile = crud.get_profile(db, user.id)
         if profile:
             st.success(f"Welcome back, **{profile['full_name']}**!")
         if st.button("Log out"):
             auth.logout_user()
             helpers.rerun()
         st.stop()
+    except Exception:
+        # Not logged in (ensure_authenticated failed)
+        pass
 
     # -------------------------
     # Tabs: Login / Register
@@ -87,14 +90,12 @@ def main():
                 elif password != confirm_pw:
                     st.error("Passwords do not match.")
                 else:
-                    # Create user in Supabase Auth
                     supabase_user = supabase.auth.sign_up({
                         "email": email,
                         "password": password,
                     })
 
                     if supabase_user.user:
-                        # Create profile in Supabase table
                         profile = crud.create_profile(
                             supabase_client=db,
                             supabase_id=supabase_user.user.id,

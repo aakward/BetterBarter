@@ -8,13 +8,16 @@ from pathlib import Path
 import sys
 import datetime
 from data.models import MatchStatus
+import re
+import supabase
 
 # Ensure project root is in sys.path
 sys.path.append(str(Path(__file__).parent.parent))
 
 
 MAX_MATCH_REQUESTS_PER_DAY = 3  # adjustable
-
+REQUEST_BUCKET_NAME = "request-images"
+OFFER_BUCKET_NAME = "offer-images"
 
 # -----------------------------
 # PROFILE CRUD
@@ -83,8 +86,8 @@ def delete_profile(db: Session, profile_id: str, supabase_client: SupabaseClient
 # -----------------------------
 # OFFER CRUD
 # -----------------------------
-def create_offer(db: Session, profile_id: str, title: str, description: str = None, category: str = None):
-    offer = models.Offer(profile_id=profile_id, title=title, description=description, category=category)
+def create_offer(db: Session, profile_id: str, title: str, description: str = None, category: str = None, image_file_name:str = None):
+    offer = models.Offer(profile_id=profile_id, title=title, description=description, category=category, image_file_name=image_file_name)
     db.add(offer)
 
     # Increment karma of the profile
@@ -111,12 +114,19 @@ def delete_offer(db: Session, offer_id: int):
     offer = db.query(models.Offer).filter(models.Offer.id == offer_id).first()
     if not offer:
         return None
-    
-    add_karma(db=db, profile_id= offer.profile_id, points=-3)
 
-    db.delete(offer)
-    db.commit()
-    return offer
+
+    image_file_name = offer.get("image_file_name")
+    if image_file_name:
+        try:
+            supabase.storage.from_(OFFER_BUCKET_NAME).remove([image_file_name])
+        except Exception as e:
+            print(f"Warning: could not delete image {image_file_name}: {e}")
+    
+    add_karma(db=db, profile_id= offer.profile_id, points=-1)
+
+    del_response = supabase.table("offers").delete().eq("id", offer_id).execute()
+    return del_response.data[0] if del_response.data else None
 
 def mark_offer_matched(db: Session, offer_id: int):
     offer = db.query(models.Offer).filter(models.Offer.id == offer_id).first()
@@ -134,8 +144,8 @@ def mark_offer_matched(db: Session, offer_id: int):
 # -----------------------------
 # REQUEST CRUD
 # -----------------------------
-def create_request(db: Session, profile_id: str, title: str, description: str = None, category: str = None):
-    req = models.Request(profile_id=profile_id, title=title, description=description, category=category)
+def create_request(db: Session, profile_id: str, title: str, description: str = None, category: str = None,  image_file_name: str = None):
+    req = models.Request(profile_id=profile_id, title=title, description=description, category=category, image_file_name=image_file_name)
     db.add(req)
 
     add_karma(db=db, profile_id= profile_id, points=1)
@@ -161,12 +171,19 @@ def delete_request(db: Session, request_id: int):
     req = db.query(models.Request).filter(models.Request.id == request_id).first()
     if not req:
         return None
+
+
+    image_file_name = req.get("image_file_name")
+    if image_file_name:
+        try:
+            supabase.storage.from_(REQUEST_BUCKET_NAME).remove([image_file_name])
+        except Exception as e:
+            print(f"Warning: could not delete image {image_file_name}: {e}")
     
     add_karma(db=db, profile_id= req.profile_id, points=-1)
 
-    db.delete(req)
-    db.commit()
-    return req
+    del_response = supabase.table("requests").delete().eq("id", request_id).execute()
+    return del_response.data[0] if del_response.data else None
 
 def mark_request_matched(db: Session, request_id: int):
     req = db.query(models.Request).filter(models.Request.id == request_id).first()

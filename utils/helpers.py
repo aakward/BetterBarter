@@ -68,6 +68,7 @@ CATEGORIES = [
     "Clothing - Women",
     "Clothing - Men",
     "Music and Instruments",
+    "Wellbeing/Medicines",
     "Stamps/Coins & Collectibles",
     "Jewellery/Bags and Accessories",
     "Game Consoles and Games",

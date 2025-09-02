@@ -50,7 +50,8 @@ class Offer(Base):
     category = Column(String(50))
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-
+    image_file_name = Column(Text, nullable=True)
+    
     profile = relationship("Profile", back_populates="offers")
     matches = relationship("Match", back_populates="offer")
     match_requests = relationship("MatchRequest", back_populates="offer")
@@ -70,6 +71,7 @@ class Request(Base):
     category = Column(String(50))
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    image_file_name = Column(Text, nullable=True)
     
     profile = relationship("Profile", back_populates="requests")
     matches = relationship("Match", back_populates="request")

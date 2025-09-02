@@ -10,17 +10,19 @@ def main():
         st.session_state["rerun_flag"] = False
 
     db = get_db()  # Supabase client
+    user = auth.ensure_authenticated(db)  # this will refresh/validate session
+    profile_id = user.id
 
-    if not auth.is_authenticated():
-        st.warning("You need to log in first.")
-        return
 
     # Get current profile
-    profile_id = auth.get_current_profile_id()
     profile = crud.get_profile(db, profile_id)
     if not profile:
         st.error("Profile not found.")
         return
+    
+    # Karma header
+    if profile:
+        st.info(f"🌟 Your Karma: **{profile['karma']}**")
 
     st.subheader("Profile Details")
     st.write(f"**Full Name:** {profile.get('full_name', '—')}")

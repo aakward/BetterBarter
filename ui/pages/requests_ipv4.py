@@ -2,6 +2,10 @@ import streamlit as st
 from data import crud_ipv4 as crud
 from data.db_ipv4 import get_db
 from utils import auth, helpers
+import uuid
+
+MAX_IMAGE_SIZE_MB = 2
+REQUEST_BUCKET_NAME = "request-images"
 
 def main():
     st.title("📬 Requests")
@@ -9,13 +13,18 @@ def main():
     if "rerun_flag" not in st.session_state:
         st.session_state["rerun_flag"] = False
 
-    if not auth.is_authenticated():
-        st.warning("You need to log in to view or create requests.")
-        st.stop()
-
+    # -------------------------
+    # Authentication
+    # -------------------------
     db = get_db()  # Supabase client
-    profile_id = auth.get_current_profile_id()
+    user = auth.ensure_authenticated(db)
+    profile_id = user.id
 
+    # Karma header
+    profile = crud.get_profile(db, profile_id)
+    if profile:
+        st.info(f"🌟 Your Karma: **{profile['karma']}**")
+        
     # -------------------------
     # Create a new request
     # -------------------------
@@ -24,35 +33,67 @@ def main():
         title = st.text_input("Title")
         description = st.text_area("Description")
         category = st.selectbox("Category", helpers.CATEGORIES)
+        image_file = st.file_uploader(
+            "Upload an image (optional, <2MB)", 
+            type=["png", "jpg", "jpeg", "heic", "heif"]
+        )
         submitted = st.form_submit_button("Add Request")
 
         if submitted:
             if not title:
                 st.error("Title is required.")
-            else:
-                crud.create_request(
-                    supabase_client=db,
-                    profile_id=profile_id,
-                    title=title,
-                    description=description,
-                    category=category
-                )
-                st.success(f"Request '{title}' created successfully!")
-                helpers.rerun()
+                st.stop()
+
+            image_file_name = None  # store file name in DB, not signed URL
+            if image_file:
+                size_mb = len(image_file.getvalue()) / (1024 * 1024)
+                if size_mb > MAX_IMAGE_SIZE_MB:
+                    st.error("Image exceeds 2MB size limit.")
+                    st.stop()
+
+                # Generate unique file name
+                ext = image_file.name.split(".")[-1].lower()
+                image_file_name = f"{profile_id}_{uuid.uuid4().hex}.{ext}"
+
+                # Upload file
+                try:
+                    res = db.storage.from_(REQUEST_BUCKET_NAME).upload(
+                        image_file_name, image_file.getvalue()
+                    )
+                    if res and isinstance(res, dict) and res.get("error"):
+                        st.error("Error uploading image: " + str(res["error"]["message"]))
+                        st.stop()
+                except Exception as e:
+                    st.error(f"Unexpected error while uploading image: {e}")
+                    st.stop()
+
+            crud.create_request(
+                supabase_client=db,
+                profile_id=profile_id,
+                title=title,
+                description=description,
+                category=category,
+                image_file_name=image_file_name
+            )
+            st.success(f"Request '{title}' created successfully!")
+            helpers.rerun()
 
     # -------------------------
     # List user's requests
     # -------------------------
     st.subheader("My Requests")
-    requests = crud.get_all_requests(db, exclude_profile_id=None)  # fetch all requests
-
-    # Filter to only user's requests
+    requests = crud.get_all_requests(db, exclude_profile_id=None)
     user_requests = [r for r in requests if r["profile_id"] == profile_id]
 
     if user_requests:
         for r in user_requests:
             st.write(f"**{r['title']}** - {r.get('category', '—')}")
             st.write(r.get("description", ""))
+            if r.get("image_file_name"):
+                signed_url_resp = db.storage.from_(REQUEST_BUCKET_NAME).create_signed_url(
+                    r["image_file_name"], 60*60*24
+                )
+                st.image(signed_url_resp.get("signedURL"), width=200)
             st.write(f"Active: {r.get('is_active', True)}")
 
             # Delete button
