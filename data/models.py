@@ -24,6 +24,7 @@ class Profile(Base):
 
     id = Column(String, primary_key=True)  # Supabase Auth UUID
     full_name = Column(String(100), nullable=False)
+    email = Column(String(255), nullable=True, unique=True)  # NEW: email field
     postal_code = Column(String(20), nullable=False)
     phone_hash = Column(String(64), nullable=True)  # SHA256 hash
     share_phone = Column(Boolean, default=False)
@@ -36,7 +37,8 @@ class Profile(Base):
     requests = relationship("Request", back_populates="profile")
 
     def __repr__(self):
-        return f"<Profile(id={self.id}, full_name={self.full_name})>"
+        return f"<Profile(id={self.id}, full_name={self.full_name}, email={self.email})>"
+
 
 # -----------------------------
 # Offers

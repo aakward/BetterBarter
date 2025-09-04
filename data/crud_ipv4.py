@@ -2,13 +2,21 @@ from supabase import Client as SupabaseClient
 from utils import auth, helpers
 import datetime
 from data.models import MatchStatus
-import re
+from services.email_service import send_match_request_email, send_match_accepted_email
 import streamlit as st
 
 MAX_MATCH_REQUESTS_PER_DAY = 3  # adjustable
 REQUEST_BUCKET_NAME = "request-images"
 OFFER_BUCKET_NAME = "offer-images"
 
+# -----------------------------
+# Helper class to pass to email service
+# -----------------------------
+class UserEmailObj:
+    def __init__(self, profile: dict):
+        self.email = profile.get("email")
+        self.name = profile.get("full_name")
+        self.phone = profile.get("phone_hash")  # optional, adjust if you store unhashed
 
 # -----------------------------
 # PROFILE CRUD
@@ -285,6 +293,21 @@ def create_match_request(
 
     resp = supabase_client.table("match_requests").insert(match_data).execute()
     add_karma(supabase_client, requester_id, 1)
+
+    if resp.data:
+        match_req = resp.data[0]
+
+        # Fetch profiles
+        requester_profile = get_profile(supabase_client, requester_id)
+        offerer_profile = None
+        if match_req.get("offerer_id"):
+            offerer_profile = get_profile(supabase_client, match_req["offerer_id"])
+
+        if requester_profile and offerer_profile:
+            requester_user = UserEmailObj(requester_profile)
+            offerer_user = UserEmailObj(offerer_profile)
+            send_match_request_email(receiver=offerer_user, sender=requester_user)
+
     return resp.data[0] if resp.data else None
 
 
@@ -389,6 +412,14 @@ def update_match_request_status(
             mark_request_matched(supabase_client, match_req["request_id"])
             if match_req.get("offerer_id"):
                 add_karma(supabase_client, match_req["offerer_id"], 5)
+        
+        # Send emails
+        requester_profile = get_profile(supabase_client, match_req["requester_id"])
+        offerer_profile = get_profile(supabase_client, match_req["offerer_id"])
+        if requester_profile and offerer_profile:
+            requester_user = UserEmailObj(requester_profile)
+            offerer_user = UserEmailObj(offerer_profile)
+            send_match_accepted_email(requester_user, offerer_user)
 
     return match_req
 
