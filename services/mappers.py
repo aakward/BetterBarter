@@ -31,12 +31,8 @@ def build_ui_match_from_match_request(mr: dict) -> UIMatch:
     offer = mr.get("offers")  # because of the alias in select
     request = mr.get("requests")
 
-    offer_profile = None
-    request_profile = None
-    if offer:
-        offer_profile = offer.get("profiles")
-    if request:
-        request_profile = request.get("profiles")
+    offer_profile = offer.get("profiles") if offer else None
+    request_profile = request.get("profiles") if request else None
 
     return UIMatch(
         id=mr["id"],
@@ -59,7 +55,14 @@ def build_ui_match_from_match_request(mr: dict) -> UIMatch:
         request_user_name=request_profile.get("full_name") if request_profile else None,
         offer_postal=offer_profile.get("postal_code") if offer_profile else None,
         request_postal=request_profile.get("postal_code") if request_profile else None,
+
+        # new contact info fields
+        offerer_contact_mode=mr.get("offerer_contact_mode"),
+        offerer_contact_value=mr.get("offerer_contact_value"),
+        requester_contact_mode=mr.get("requester_contact_mode"),
+        requester_contact_value=mr.get("requester_contact_value"),
     )
+
 
 
 

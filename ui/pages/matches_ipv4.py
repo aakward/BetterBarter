@@ -56,14 +56,14 @@ def main():
             if o["profile_id"] == profile_id
         ]
 
-        st.subheader(f"✨ Matches for Your Requests ({len(matches_for_my_requests)})")
+        st.subheader(f"✨ Potential Matches for Your Requests ({len(matches_for_my_requests)})")
         if matches_for_my_requests:
             for idx, match in enumerate(matches_for_my_requests):
                 display_match(db, match, section="potential", profile_id=profile_id, idx=idx)
         else:
             st.info("No offers found for your requests right now!")
 
-        st.subheader(f"🎁 Matches for Your Offers ({len(matches_for_my_offers)})")
+        st.subheader(f"🎁 Potential Matches for Your Offers ({len(matches_for_my_offers)})")
         if matches_for_my_offers:
             for idx, match in enumerate(matches_for_my_offers):
                 display_match(db, match, section="potential", profile_id=profile_id, idx=idx + 1000)
@@ -174,10 +174,30 @@ def display_match(db: Client, match: UIMatch, section: str, profile_id: str, idx
                 st.session_state[toggle_key] = True
             if st.session_state.get(toggle_key, False):
                 custom_message = st.text_area("Custom message (optional)", key=f"msg-potential-{idx}")
+                contact_mode = st.selectbox(
+                    "Preferred contact method",
+                    options=["Email", "Phone", "WhatsApp", "Telegram"],
+                    key=f"contact-mode-{idx}"
+                )
+                contact_value = st.text_input(
+                    "Your contact details",
+                    key=f"contact-value-{idx}"
+                )
                 if st.button("Submit Request", key=f"submit-{idx}"):
-                    crud.create_match_request(db, profile_id, match.offer_id, match.request_id, custom_message)
-                    st.success("Request sent!")
-                    st.session_state[toggle_key] = False
+                    if not contact_value:
+                        st.error("Please provide your contact details.")
+                    else:
+                        crud.create_match_request(
+                            db,
+                            requester_id=profile_id,
+                            offer_id=match.offer_id,
+                            request_id=match.request_id,
+                            message=custom_message,
+                            contact_mode=contact_mode,
+                            contact_value=contact_value
+                        )
+                        st.success("Request sent!")
+                        st.session_state[toggle_key] = False
 
         elif section == "sent":
             st.write(f"**To:** {match.offer_user_name or '-'} ({match.offer_postal or '-'})")
@@ -189,9 +209,27 @@ def display_match(db: Client, match: UIMatch, section: str, profile_id: str, idx
             st.write(f"**From:** {match.request_user_name or '-'} ({match.request_postal or '-'})")
             col1, col2 = st.columns(2)
             with col1:
+                contact_mode = st.selectbox(
+                    "Preferred contact method for this match",
+                    options=["Email", "Phone", "WhatsApp"],
+                    key=f"accept-contact-mode-{idx}"
+                )
+                contact_value = st.text_input(
+                    "Provide contact details to share",
+                    key=f"accept-contact-value-{idx}"
+                )
                 if st.button("Accept", key=f"accept-{idx}"):
-                    crud.accept_match_request(db, match.id, profile_id)
-                    st.success("Request accepted!")
+                    if not contact_value:
+                        st.error("Please provide contact details to accept the match.")
+                    else:
+                        crud.accept_match_request(
+                            db,
+                            match_request_id=match.id,
+                            profile_id=profile_id,
+                            contact_mode=contact_mode,
+                            contact_value=contact_value
+                        )
+                        st.success("Request accepted!")
             with col2:
                 if st.button("Decline", key=f"decline-{idx}"):
                     crud.decline_match_request(db, match.id, profile_id)
@@ -200,6 +238,13 @@ def display_match(db: Client, match: UIMatch, section: str, profile_id: str, idx
         elif section == "matched":
             st.success("✅ Matched / Completed")
             st.write(f"Participants: {match.offer_user_name or '-'} ↔ {match.request_user_name or '-'}")
+
+            # Show contact info for the other party
+            if profile_id == match.requester_id:
+                st.write(f"Contact {match.offer_user_name}: {match.offerer_contact_value or '-'} ({match.offerer_contact_mode or '-'})")
+            elif profile_id == match.offerer_id:
+                st.write(f"Contact {match.request_user_name}: {match.requester_contact_value or '-'} ({match.requester_contact_mode or '-'})")
+
 
 if __name__ == "__main__":
     main()

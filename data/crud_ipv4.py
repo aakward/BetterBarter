@@ -241,12 +241,17 @@ def create_match_request(
     offer_id: int = None,
     request_id: int = None,
     message: str = None,
+    contact_mode: str = None,
+    contact_value: str = None,
 ):
     if not can_send_match_request(supabase_client, requester_id):
         raise Exception(f"Daily limit of {MAX_MATCH_REQUESTS_PER_DAY} match requests reached.")
 
     if not offer_id and not request_id:
         raise Exception("Either offer_id or request_id must be provided.")
+
+    if not contact_mode or not contact_value:
+        raise Exception("Contact mode and contact details must be provided.")
 
     # Fetch the offer to get offerer_id
     offerer_id = None
@@ -273,11 +278,15 @@ def create_match_request(
         "status": "pending",
         "created_at": datetime.datetime.utcnow().isoformat(),
         "notified": False,
+        # contact info from requester
+        "requester_contact_mode": contact_mode,
+        "requester_contact_value": contact_value,
     }
 
     resp = supabase_client.table("match_requests").insert(match_data).execute()
     add_karma(supabase_client, requester_id, 1)
     return resp.data[0] if resp.data else None
+
 
 
 
@@ -344,12 +353,29 @@ def get_match_requests_for_offerer(db, offerer_id: str, status: str = None):
 
 
 
-def update_match_request_status(supabase_client: SupabaseClient, match_request_id: int, status: str):
-    resp = supabase_client.table("match_requests").update({
+def update_match_request_status(
+    supabase_client: SupabaseClient,
+    match_request_id: int,
+    status: str,
+    contact_mode: str = None,
+    contact_value: str = None,
+):
+    """
+    Updates the status of a match request.
+    Optionally updates contact info if provided.
+    """
+    update_data = {
         "status": status,
         "updated_at": datetime.datetime.utcnow().isoformat()
-    }).eq("id", match_request_id).execute()
+    }
 
+    # Set contact info depending on status
+    if status == MatchStatus.accepted:
+        if contact_mode and contact_value:
+            update_data["offerer_contact_mode"] = contact_mode
+            update_data["offerer_contact_value"] = contact_value
+
+    resp = supabase_client.table("match_requests").update(update_data).eq("id", match_request_id).execute()
     match_req = resp.data[0] if resp.data else None
     if not match_req:
         return None
@@ -357,14 +383,12 @@ def update_match_request_status(supabase_client: SupabaseClient, match_request_i
     if status == MatchStatus.accepted:
         if match_req.get("offer_id"):
             mark_offer_matched(supabase_client, match_req["offer_id"])
+            if match_req.get("requester_id"):
+                add_karma(supabase_client, match_req["requester_id"], 5)
         if match_req.get("request_id"):
             mark_request_matched(supabase_client, match_req["request_id"])
-
-    if status == MatchStatus.completed:
-        if match_req.get("requester_id"):
-            add_karma(supabase_client, match_req["requester_id"], 5)
-        if match_req.get("offerer_id"):
-            add_karma(supabase_client, match_req["offerer_id"], 5)
+            if match_req.get("offerer_id"):
+                add_karma(supabase_client, match_req["offerer_id"], 5)
 
     return match_req
 
@@ -482,11 +506,17 @@ def get_potential_matches(supabase_client, profile_id: str):
 
 
 
-def accept_match_request(supabase_client: SupabaseClient, match_request_id: int, profile_id: str):
+def accept_match_request(
+    supabase_client: SupabaseClient,
+    match_request_id: int,
+    profile_id: str,
+    contact_mode: str = None,
+    contact_value: str = None,
+):
     """
-    Accept a match request. Wrapper around update_match_request_status.
-    Only the offerer can accept.
+    Accept a match request. Only the offerer can accept.
     """
+    # Ensure the profile is the offerer
     resp = supabase_client.table("match_requests")\
         .select("*")\
         .eq("id", match_request_id)\
@@ -497,7 +527,14 @@ def accept_match_request(supabase_client: SupabaseClient, match_request_id: int,
     if not match_req:
         return None
 
-    return update_match_request_status(supabase_client, match_request_id, MatchStatus.accepted)
+    # Use the central update function, passing contact info
+    return update_match_request_status(
+        supabase_client,
+        match_request_id,
+        status=MatchStatus.accepted,
+        contact_mode=contact_mode,
+        contact_value=contact_value
+    )
 
 
 def decline_match_request(supabase_client: SupabaseClient, match_request_id: int, profile_id: str):

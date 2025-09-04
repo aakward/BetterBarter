@@ -119,6 +119,14 @@ class MatchRequest(Base):
     # Optional personalization
     message = Column(Text, nullable=True)
 
+    # Contact details from requester (set when creating the request)
+    requester_contact_mode = Column(String(20), nullable=True)   # e.g. "email", "phone", "whatsapp"
+    requester_contact_value = Column(String(100), nullable=True)
+
+    # Contact details from offerer (set when accepting the request)
+    offerer_contact_mode = Column(String(20), nullable=True)
+    offerer_contact_value = Column(String(100), nullable=True)
+
     # Status lifecycle
     status = Column(Enum(MatchStatus), default=MatchStatus.pending)
 
