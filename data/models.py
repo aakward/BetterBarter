@@ -13,7 +13,7 @@ from datetime import datetime
 class MatchStatus(enum.Enum):
     pending = "pending"
     accepted = "accepted"
-    rejected = "rejected"
+    declined = "declined"
     completed = "completed"
 
 # -----------------------------

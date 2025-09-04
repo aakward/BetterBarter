@@ -3,6 +3,8 @@ import bcrypt
 import hashlib
 import smtplib
 from email.message import EmailMessage
+from datetime import datetime
+
 
 def rerun():
     st.session_state["rerun_flag"] = not st.session_state.get("rerun_flag", False)
@@ -41,7 +43,7 @@ def send_match_email(to_email: str, from_name: str, offer_title: str, request_ti
         server.starttls()
         server.login("your-email@domain.com", "your-password")
         server.send_message(msg)
-
+    
 CATEGORIES = [
     "Antiques",
     "Art",
@@ -82,3 +84,14 @@ CATEGORIES = [
     "Business Goods",
     "Miscellaneous"
 ]
+
+
+def parse_datetime(dt):
+    if not dt:
+        return None
+    if isinstance(dt, str):
+        try:
+            return datetime.fromisoformat(dt.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    return dt

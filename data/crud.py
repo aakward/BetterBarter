@@ -368,3 +368,44 @@ def get_all_offers(db: Session, exclude_profile_id: str = None):
     if exclude_profile_id:
         query = query.filter(models.Offer.profile_id != exclude_profile_id)
     return query.all()
+
+# crud/matches.py
+def get_potential_matches(db, profile_id: str):
+    """
+    Return potential matches for the logged-in profile.
+    Includes (offer, request) pairs that are NOT already
+    in Match or MatchRequest.
+    """
+    from models import Offer, Request, Match, MatchRequest
+
+    # Requests by me
+    my_requests = db.query(Request).filter(Request.profile_id == profile_id).all()
+    # Offers by me
+    my_offers = db.query(Offer).filter(Offer.profile_id == profile_id).all()
+
+    # Candidate matches: other's offers ↔ my requests
+    offer_candidates = db.query(Offer, Request).join(Request).filter(
+        Request.profile_id == profile_id,
+        Offer.profile_id != profile_id,
+    ).all()
+
+    # Candidate matches: other's requests ↔ my offers
+    request_candidates = db.query(Offer, Request).join(Offer).filter(
+        Offer.profile_id == profile_id,
+        Request.profile_id != profile_id,
+    ).all()
+
+    candidates = offer_candidates + request_candidates
+
+    # Filter out already existing confirmed/sent/received
+    existing = db.query(MatchRequest).filter(
+        (MatchRequest.requester_id == profile_id) |
+        (MatchRequest.offerer_id == profile_id)
+    ).all()
+    existing_pairs = {(mr.offer_id, mr.request_id) for mr in existing}
+
+    # Only keep fresh pairs
+    return [
+        (o, r) for (o, r) in candidates
+        if (o.id, r.id) not in existing_pairs
+    ]

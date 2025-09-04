@@ -22,12 +22,12 @@ def main():
     # Already logged in (refresh session if needed)
     # -------------------------
     try:
-        #user = auth.ensure_authenticated(db)
+        user = auth.ensure_authenticated(db, required=False)
         profile = crud.get_profile(db, user.id)
         if profile:
             st.success(f"Welcome back, **{profile['full_name']}**!")
         if st.button("Log out"):
-            auth.logout_user()
+            auth.logout_user(db)
             helpers.rerun()
         st.stop()
     except Exception:

@@ -81,9 +81,9 @@ def main():
                 if col1.button("✅ Approve", key=f"approve_{r.id}"):
                     crud.update_match_request_status(db, r.id, "approved")
                     st.success("Match approved! Both parties gained karma.")
-                if col2.button("❌ Reject", key=f"reject_{r.id}"):
-                    crud.update_match_request_status(db, r.id, "rejected")
-                    st.warning("Match request rejected.")
+                if col2.button("❌ Decline", key=f"decline_{r.id}"):
+                    crud.update_match_request_status(db, r.id, "declined")
+                    st.warning("Match request declined.")
     else:
         st.info("No incoming match requests yet.")
 

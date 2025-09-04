@@ -3,6 +3,7 @@ from utils import auth, helpers
 import datetime
 from data.models import MatchStatus
 import re
+import streamlit as st
 
 MAX_MATCH_REQUESTS_PER_DAY = 3  # adjustable
 REQUEST_BUCKET_NAME = "request-images"
@@ -64,14 +65,16 @@ def delete_profile(supabase_client: SupabaseClient, profile_id: str):
 # -----------------------------
 # OFFER CRUD
 # -----------------------------
-def create_offer(supabase_client: SupabaseClient, profile_id: str, title: str, description: str = None, category: str = None):
+def create_offer(supabase_client: SupabaseClient, profile_id: str, title: str, description: str = None, category: str = None,  image_file_name: str = None):
     offer_data = {
         "profile_id": profile_id,
         "title": title,
         "description": description,
         "category": category,
-        "is_active": True
+        "is_active": True,
     }
+    if image_file_name:
+        offer_data["image_file_name"] = image_file_name
     response = supabase_client.table("offers").insert(offer_data).execute()
 
     # Increment karma
@@ -245,15 +248,21 @@ def create_match_request(
     if not offer_id and not request_id:
         raise Exception("Either offer_id or request_id must be provided.")
 
-    existing = get_existing_match_request(supabase_client, requester_id, request_id, offer_id)
-    if existing:
-        raise Exception("You have already expressed interest or sent a match request here.")
-
+    # Fetch the offer to get offerer_id
     offerer_id = None
     if offer_id:
         offer_resp = supabase_client.table("offers").select("profile_id").eq("id", offer_id).execute()
         if offer_resp.data:
             offerer_id = offer_resp.data[0]["profile_id"]
+
+    # Prevent sending match request to self
+    if offerer_id == requester_id:
+        raise Exception("Cannot send a match request to your own offer.")
+
+    # Prevent duplicate match requests
+    existing = get_existing_match_request(supabase_client, requester_id, request_id, offer_id)
+    if existing:
+        raise Exception("You have already expressed interest or sent a match request here.")
 
     match_data = {
         "requester_id": requester_id,
@@ -261,13 +270,15 @@ def create_match_request(
         "request_id": request_id,
         "offerer_id": offerer_id,
         "message": message,
-        "status": MatchStatus.pending,
-        "created_at": datetime.datetime.utcnow().isoformat()
+        "status": "pending",
+        "created_at": datetime.datetime.utcnow().isoformat(),
+        "notified": False,
     }
 
     resp = supabase_client.table("match_requests").insert(match_data).execute()
     add_karma(supabase_client, requester_id, 1)
     return resp.data[0] if resp.data else None
+
 
 
 def get_match_requests_for_offer(supabase_client: SupabaseClient, offer_id: int, status: str = "pending"):
@@ -280,19 +291,57 @@ def get_match_requests_for_offer(supabase_client: SupabaseClient, offer_id: int,
 
 
 def get_match_requests_by_requester(supabase_client: SupabaseClient, requester_id: str, status: str = None):
-    query = supabase_client.table("match_requests").select("*").eq("requester_id", requester_id)
+    query = (
+        supabase_client
+        .table("match_requests")
+        .select(
+            """
+            *,
+            offers:offer_id (
+                id, title, description, image_file_name,
+                profiles:profile_id (id, full_name, postal_code)
+            ),
+            requests:request_id (
+                id, title, description, image_file_name,
+                profiles:profile_id (id, full_name, postal_code)
+            )
+            """
+        )
+        .eq("requester_id", requester_id)
+    )
     if status:
         query = query.eq("status", status)
     resp = query.execute()
     return resp.data
 
 
-def get_match_requests_for_offerer(supabase_client: SupabaseClient, offerer_id: str, status: str = None):
-    query = supabase_client.table("match_requests").select("*").eq("offerer_id", offerer_id)
+
+def get_match_requests_for_offerer(db, offerer_id: str, status: str = None):
+    query = (
+        db.table("match_requests")
+        .select(
+            """
+            *,
+            offers:offer_id (
+                id, title, description, image_file_name,
+                profiles:profile_id (id, full_name, postal_code)
+            ),
+            requests:request_id (
+                id, title, description, image_file_name,
+                profiles:profile_id (id, full_name, postal_code)
+            )
+            """
+        )
+        .eq("offerer_id", offerer_id)
+        .neq("requester_id", offerer_id)  # <--- exclude self-requests
+    )
     if status:
         query = query.eq("status", status)
+
     resp = query.execute()
     return resp.data
+
+
 
 
 def update_match_request_status(supabase_client: SupabaseClient, match_request_id: int, status: str):
@@ -325,8 +374,11 @@ def cancel_match_request(supabase_client: SupabaseClient, match_request_id: int,
         .delete()\
         .eq("id", match_request_id)\
         .eq("requester_id", requester_id)\
-        .eq("status", MatchStatus.pending)\
+        .eq("status", MatchStatus.pending.value)\
         .execute()
+    
+    add_karma(supabase_client, requester_id, -1)
+
     return bool(resp.data)
 
 
@@ -351,3 +403,120 @@ def get_all_offers(supabase_client: SupabaseClient, exclude_profile_id: str = No
         query = query.neq("profile_id", exclude_profile_id)
     resp = query.execute()
     return resp.data if resp.data else []
+
+
+# -----------------------------
+# MATCH CRUD
+# -----------------------------
+
+
+def match_request_exists(supabase_client: SupabaseClient , requester_id, request_id, offer_id):
+    res = supabase_client.table("match_requests")\
+        .select("id")\
+        .eq("requester_id", requester_id)\
+        .eq("request_id", request_id)\
+        .eq("offer_id", offer_id)\
+        .execute()
+    return bool(res.data)
+
+
+
+def get_potential_matches(supabase_client, profile_id: str):
+    """
+    Return potential matches for the logged-in profile.
+    Excludes matches where requester and offerer are the same profile.
+    """
+    candidates = []
+
+    # Fetch active offers and requests
+    all_offers = supabase_client.table("offers")\
+        .select("*, profiles(full_name, postal_code)")\
+        .eq("is_active", True)\
+        .execute().data or []
+
+    all_requests = supabase_client.table("requests")\
+        .select("*, profiles(full_name, postal_code)")\
+        .eq("is_active", True)\
+        .execute().data or []
+
+    # Separate my vs others
+    my_offers = [o for o in all_offers if o["profile_id"] == profile_id]
+    my_requests = [r for r in all_requests if r["profile_id"] == profile_id]
+
+    others_offers = [o for o in all_offers if o["profile_id"] != profile_id]
+    others_requests = [r for r in all_requests if r["profile_id"] != profile_id]
+
+    # Pre-fetch existing match requests
+    existing = supabase_client.table("match_requests")\
+        .select("offer_id, request_id")\
+        .or_(f"requester_id.eq.{profile_id},offerer_id.eq.{profile_id}")\
+        .execute().data or []
+
+    existing_pairs = {
+        (mr["offer_id"], mr["request_id"])
+        for mr in existing
+        if mr.get("offer_id") is not None and mr.get("request_id") is not None
+    }
+
+    # 1. My requests -> Others' offers
+    for req in my_requests:
+        for offer in others_offers:
+            # Skip self-match (shouldn’t happen, but just in case)
+            if req["profile_id"] == offer["profile_id"]:
+                continue
+            if (offer["id"], req["id"]) not in existing_pairs:
+                candidates.append((offer, req))
+
+    # 2. My offers -> Others' requests
+    for offer in my_offers:
+        for req in others_requests:
+            if offer["profile_id"] == req["profile_id"]:
+                continue
+            if (offer["id"], req["id"]) not in existing_pairs:
+                candidates.append((offer, req))
+
+    return candidates
+
+
+
+
+
+
+def accept_match_request(supabase_client: SupabaseClient, match_request_id: int, profile_id: str):
+    """
+    Accept a match request. Wrapper around update_match_request_status.
+    Only the offerer can accept.
+    """
+    resp = supabase_client.table("match_requests")\
+        .select("*")\
+        .eq("id", match_request_id)\
+        .eq("offerer_id", profile_id)\
+        .execute()
+
+    match_req = resp.data[0] if not resp.error and resp.data else None
+    if not match_req:
+        return None
+
+    return update_match_request_status(supabase_client, match_request_id, MatchStatus.accepted)
+
+
+def decline_match_request(supabase_client: SupabaseClient, match_request_id: int, profile_id: str):
+    """
+    Decline a match request. 
+    Updates status to 'declined' instead of deleting.
+    Only the offerer can decline.
+    """
+    resp = supabase_client.table("match_requests")\
+        .select("*")\
+        .eq("id", match_request_id)\
+        .eq("offerer_id", profile_id)\
+        .execute()
+
+    match_req = resp.data[0] if not resp.error and resp.data else None
+    if not match_req:
+        return None
+
+    # Update status → declined
+    updated = update_match_request_status(supabase_client, match_request_id, MatchStatus.declined)
+
+    return updated

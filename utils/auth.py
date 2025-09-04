@@ -19,17 +19,26 @@ def login_user(user_id: str):
     st.session_state[SESSION_KEY] = user_id
 
 
-def logout_user():
+def logout_user(db=None):
     """Clear the session."""
+    # Clear Streamlit session key
     if SESSION_KEY in st.session_state:
         del st.session_state[SESSION_KEY]
 
+    # Clear Supabase session if a client is provided
+    if db is not None:
+        try:
+            db.auth.sign_out()
+        except Exception as e:
+            st.warning(f"Error signing out of Supabase: {e}")
 
-def ensure_authenticated(db: Client):
+
+
+def ensure_authenticated(db: Client, required: bool = True):
     """
     Ensures the current Supabase session is valid.
     Returns the user object if valid.
-    Stops execution if no valid session.
+    If required=False, returns None instead of stopping execution.
     """
     try:
         user_resp = db.auth.get_user()
@@ -37,7 +46,6 @@ def ensure_authenticated(db: Client):
             st.session_state[SESSION_KEY] = user_resp.user.id
             return user_resp.user
         else:
-            # Try to refresh session
             try:
                 session = db.auth.refresh_session()
                 if session and session.user:
@@ -46,13 +54,17 @@ def ensure_authenticated(db: Client):
             except AuthSessionMissingError:
                 pass
 
-        # No valid session
-        st.error("Your session has expired or you are not logged in. Please log in again.")
-        st.stop()
+        if required:
+            st.error("Your session has expired or you are not logged in. Please log in again.")
+            st.stop()
+        return None  # not required → just return None
 
     except Exception as e:
-        st.error(f"Error checking authentication: {e}")
-        st.stop()
+        if required:
+            st.error(f"Error checking authentication: {e}")
+            st.stop()
+        return None
+
 
 
 

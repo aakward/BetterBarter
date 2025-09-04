@@ -60,7 +60,7 @@ def main():
 
     st.write("---")
     if st.button("Log out"):
-        auth.logout_user()
+        auth.logout_user(db)
         st.success("Logged out successfully.")
         helpers.rerun()
 
