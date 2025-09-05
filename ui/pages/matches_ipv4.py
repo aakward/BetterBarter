@@ -222,41 +222,48 @@ def display_match(db: Client, match: UIMatch, section: str, profile_id: str, idx
             st.write(f"**From:** {sender_name or '-'} ({sender_postal or '-'})")
 
             col1, col2 = st.columns(2)
+            accept_key = f"accept_clicked_{idx}"  # track if user clicked Accept
+
             with col1:
-                contact_mode_key = f"accept-contact-mode-{idx}"
-                contact_value_key = f"accept-contact-value-{idx}"
+                if not st.session_state.get(accept_key, False):
+                    # Show only the Accept button initially
+                    if st.button("Accept", key=f"accept-{idx}"):
+                        st.session_state[accept_key] = True
+                else:
+                    # Once clicked, show contact inputs
+                    contact_mode_key = f"accept-contact-mode-{idx}"
+                    contact_value_key = f"accept-contact-value-{idx}"
 
-                # Pre-fill contact info if it exists
-                existing_contact_mode = match.requester_contact_mode if is_requester else match.offerer_contact_mode
-                existing_contact_value = match.requester_contact_value if is_requester else match.offerer_contact_value
+                    existing_contact_mode = match.requester_contact_mode if is_requester else match.offerer_contact_mode
+                    existing_contact_value = match.requester_contact_value if is_requester else match.offerer_contact_value
 
-                contact_mode = st.selectbox(
-                    "Preferred contact method for this match",
-                    options=["Email", "Phone", "WhatsApp"],
-                    key=contact_mode_key,
-                    index=["Email", "Phone", "WhatsApp"].index(existing_contact_mode)
-                        if existing_contact_mode in ["Email", "Phone", "WhatsApp"] else 0
-                )
-                contact_value = st.text_input(
-                    "Provide contact details to share",
-                    key=contact_value_key,
-                    value=existing_contact_value or ""
-                )
+                    contact_mode = st.selectbox(
+                        "Preferred contact method for this match",
+                        options=["Email", "Phone", "WhatsApp"],
+                        key=contact_mode_key,
+                        index=["Email", "Phone", "WhatsApp"].index(existing_contact_mode)
+                            if existing_contact_mode in ["Email", "Phone", "WhatsApp"] else 0
+                    )
+                    contact_value = st.text_input(
+                        "Provide contact details to share",
+                        key=contact_value_key,
+                        value=existing_contact_value or ""
+                    )
 
-                # Disable accept if contact info already exists
-                accept_disabled = bool(existing_contact_value)
-                if st.button("Accept", key=f"accept-{idx}", disabled=accept_disabled):
-                    if not contact_value:
-                        st.error("Please provide contact details to accept the match.")
-                    else:
-                        crud.accept_match_request(
-                            db,
-                            match_request_id=match.id,
-                            profile_id=profile_id,
-                            contact_mode=contact_mode,
-                            contact_value=contact_value
-                        )
-                        st.success("Request accepted!")
+                    if st.button("Confirm Accept", key=f"confirm-accept-{idx}"):
+                        if not contact_value:
+                            st.error("Please provide contact details to accept the match.")
+                        else:
+                            crud.accept_match_request(
+                                db,
+                                match_request_id=match.id,
+                                profile_id=profile_id,
+                                contact_mode=contact_mode,
+                                contact_value=contact_value
+                            )
+                            st.success("Request accepted!")
+                            st.session_state[accept_key] = False  # reset if needed
+
 
             with col2:
                 if st.button("Decline", key=f"decline-{idx}"):
