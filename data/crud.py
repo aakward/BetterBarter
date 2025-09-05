@@ -34,13 +34,12 @@ def create_profile(
     """
     Create a local profile entry after Supabase user creation.
     """
-    hashed_phone = helpers.hash_phone(phone) if phone else None
 
     profile = models.Profile(
         id=supabase_id,
         full_name=full_name,
         postal_code=postal_code,
-        phone_hash=hashed_phone,
+        phone=phone,
         share_phone=share_phone,
         karma=1  # initial karma point
     )
@@ -58,7 +57,7 @@ def update_profile(db: Session, profile_id: str, phone: str = None, share_phone:
         return None
 
     if phone is not None:
-        profile.phone_hash = helpers.hash_phone(phone)
+        profile.phone = phone
     if share_phone is not None:
         profile.share_phone = share_phone
 

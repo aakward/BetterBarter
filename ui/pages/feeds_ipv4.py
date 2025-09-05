@@ -18,10 +18,11 @@ def create_signed_url(db, bucket: str, file_name: str, expires_sec: int = 60 * 6
         return None
 
 
-def display_feed_item(db, profile_id, item, item_type="request"):
+def display_feed_item(db, caller_id, item, item_type="request"):
     """
     Display a single request or offer inside an expander with card-like layout.
-    item_type: "request" or "offer"
+    item_type: "request" or "offer" (feed view)
+    caller_id: the profile id of the current user
     """
     profile = crud.get_profile(db, item["profile_id"])
     icon = "📌" if item_type == "request" else "🎁"
@@ -51,7 +52,7 @@ def display_feed_item(db, profile_id, item, item_type="request"):
         # ---- Bottom row: match request section ----
         existing_match = crud.get_existing_match_request(
             db,
-            profile_id,
+            caller_id,
             request_id=item["id"] if item_type == "request" else None,
             offer_id=item["id"] if item_type == "offer" else None
         )
@@ -89,20 +90,25 @@ def display_feed_item(db, profile_id, item, item_type="request"):
                         st.error("Please provide both contact mode and contact info.")
                     else:
                         try:
+                            # Correct initiator_type logic
+                            initiator_type = "offer" if item_type == "request" else "request"
+
                             match_req = crud.create_match_request(
                                 db,
-                                requester_id=profile_id,
+                                caller_id=caller_id,
                                 request_id=item["id"] if item_type == "request" else None,
                                 offer_id=item["id"] if item_type == "offer" else None,
                                 message=custom_message,
                                 contact_mode=contact_mode,
-                                contact_value=contact_value
+                                contact_value=contact_value,
+                                initiator_type=initiator_type
                             )
                             if match_req:
                                 st.success("✅ Match request sent successfully!")
                                 st.session_state[toggle_key] = False
                         except Exception as e:
                             st.error(f"❌ {str(e)}")
+
 
 
 def main():

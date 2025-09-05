@@ -1,3 +1,4 @@
+from typing import Literal
 from supabase import Client as SupabaseClient
 from utils import auth, helpers
 import datetime
@@ -16,7 +17,7 @@ class UserEmailObj:
     def __init__(self, profile: dict):
         self.email = profile.get("email")
         self.name = profile.get("full_name")
-        self.phone = profile.get("phone_hash")  # optional, adjust if you store unhashed
+        self.phone = profile.get("phone")  # optional, adjust if you store unhashed
 
 # -----------------------------
 # PROFILE CRUD
@@ -32,13 +33,12 @@ def create_profile(
     """
     Create a profile entry in Supabase.
     """
-    hashed_phone = helpers.hash_phone(phone) if phone else None
 
     response = supabase_client.table("profiles").insert({
         "id": supabase_id,
         "full_name": full_name,
         "postal_code": postal_code,
-        "phone_hash": hashed_phone,
+        "phone": phone,
         "share_phone": share_phone,
         "karma": 1
     }).execute()
@@ -54,7 +54,7 @@ def get_profile(supabase_client: SupabaseClient, profile_id: str):
 def update_profile(supabase_client: SupabaseClient, profile_id: str, phone: str = None, share_phone: bool = None, **kwargs):
     update_data = kwargs.copy()
     if phone is not None:
-        update_data["phone_hash"] = helpers.hash_phone(phone)
+        update_data["phone"] = phone
     if share_phone is not None:
         update_data["share_phone"] = share_phone
 
@@ -245,14 +245,22 @@ def get_existing_match_request(supabase_client: SupabaseClient, requester_id: st
 
 def create_match_request(
     supabase_client: SupabaseClient,
-    requester_id: str,
+    caller_id: str,
     offer_id: int = None,
     request_id: int = None,
     message: str = None,
     contact_mode: str = None,
     contact_value: str = None,
+    initiator_type: Literal["request", "offer"] = "request",
 ):
-    if not can_send_match_request(supabase_client, requester_id):
+    """
+    Create a match request. Handles both:
+    - Caller owns a request and wants an offer (initiator_type="request")
+    - Caller owns an offer and wants to respond to a request (initiator_type="offer")
+    """
+
+    # --- Basic validations ---
+    if not can_send_match_request(supabase_client, caller_id):
         raise Exception(f"Daily limit of {MAX_MATCH_REQUESTS_PER_DAY} match requests reached.")
 
     if not offer_id and not request_id:
@@ -261,52 +269,76 @@ def create_match_request(
     if not contact_mode or not contact_value:
         raise Exception("Contact mode and contact details must be provided.")
 
-    # Fetch the offer to get offerer_id
-    offerer_id = None
-    if offer_id:
-        offer_resp = supabase_client.table("offers").select("profile_id").eq("id", offer_id).execute()
-        if offer_resp.data:
-            offerer_id = offer_resp.data[0]["profile_id"]
+    # --- Determine roles based on initiator ---
+    requester_id = offerer_id = None
 
-    # Prevent sending match request to self
-    if offerer_id == requester_id:
-        raise Exception("Cannot send a match request to your own offer.")
+    if initiator_type == "request":
+        if not request_id:
+            raise Exception("request_id must be provided when initiator_type='request'")
+        requester_id = caller_id
 
-    # Prevent duplicate match requests
-    existing = get_existing_match_request(supabase_client, requester_id, request_id, offer_id)
-    if existing:
-        raise Exception("You have already expressed interest or sent a match request here.")
+        if offer_id:
+            resp = supabase_client.table("offers").select("profile_id").eq("id", offer_id).execute()
+            if not resp.data:
+                raise Exception("Offer not found")
+            offerer_id = resp.data[0]["profile_id"]
 
+        if offerer_id == caller_id:
+            raise Exception("Cannot send a match request to your own offer")
+
+    elif initiator_type == "offer":
+        if not offer_id:
+            raise Exception("offer_id must be provided when initiator_type='offer'")
+        offerer_id = caller_id
+
+        if request_id:
+            resp = supabase_client.table("requests").select("profile_id").eq("id", request_id).execute()
+            if not resp.data:
+                raise Exception("Request not found")
+            requester_id = resp.data[0]["profile_id"]
+
+        if requester_id == caller_id:
+            raise Exception("Cannot send a match request to your own request")
+
+    else:
+        raise Exception("Invalid initiator_type. Must be 'request' or 'offer'.")
+
+    # --- Prevent duplicate match requests ---
+    if get_existing_match_request(supabase_client, caller_id, request_id, offer_id):
+        raise Exception("You have already sent a match request here.")
+
+    # --- Prepare match data ---
     match_data = {
         "requester_id": requester_id,
-        "offer_id": offer_id,
-        "request_id": request_id,
         "offerer_id": offerer_id,
+        "request_id": request_id,
+        "offer_id": offer_id,
         "message": message,
         "status": "pending",
         "created_at": datetime.datetime.utcnow().isoformat(),
         "notified": False,
-        # contact info from requester
-        "requester_contact_mode": contact_mode,
-        "requester_contact_value": contact_value,
+        "requester_contact_mode": contact_mode if initiator_type == "request" else None,
+        "requester_contact_value": contact_value if initiator_type == "request" else None,
+        "offerer_contact_mode": contact_mode if initiator_type == "offer" else None,
+        "offerer_contact_value": contact_value if initiator_type == "offer" else None,
     }
 
+    # --- Insert into DB ---
     resp = supabase_client.table("match_requests").insert(match_data).execute()
-    add_karma(supabase_client, requester_id, 1)
+    add_karma(supabase_client, caller_id, 1)
 
+    # --- Send email notification ---
     if resp.data:
-        match_req = resp.data[0]
+        caller_profile = get_profile(supabase_client, caller_id)
+        other_profile = get_profile(supabase_client, offerer_id if initiator_type == "request" else requester_id)
 
-        # Fetch profiles
-        requester_profile = get_profile(supabase_client, requester_id)
-        offerer_profile = None
-        if match_req.get("offerer_id"):
-            offerer_profile = get_profile(supabase_client, match_req["offerer_id"])
-
-        if requester_profile and offerer_profile:
-            requester_user = UserEmailObj(requester_profile)
-            offerer_user = UserEmailObj(offerer_profile)
-            send_match_request_email(receiver=offerer_user, sender=requester_user)
+        if caller_profile and other_profile:
+            # Pass contact info as dict for email formatting
+            send_match_request_email(
+                receiver=UserEmailObj(other_profile),
+                sender=UserEmailObj(caller_profile),
+                receiver_contact={"mode": contact_mode, "value": contact_value}
+            )
 
     return resp.data[0] if resp.data else None
 
@@ -380,29 +412,35 @@ def update_match_request_status(
     supabase_client: SupabaseClient,
     match_request_id: int,
     status: str,
+    profile_id: str,  # the one performing the action
     contact_mode: str = None,
     contact_value: str = None,
 ):
     """
     Updates the status of a match request.
-    Optionally updates contact info if provided.
+    Updates the contact info of the accepter (offerer or requester).
     """
-    update_data = {
-        "status": status,
-        "updated_at": datetime.datetime.utcnow().isoformat()
-    }
-
-    # Set contact info depending on status
-    if status == MatchStatus.accepted:
-        if contact_mode and contact_value:
-            update_data["offerer_contact_mode"] = contact_mode
-            update_data["offerer_contact_value"] = contact_value
-
-    resp = supabase_client.table("match_requests").update(update_data).eq("id", match_request_id).execute()
-    match_req = resp.data[0] if resp.data else None
+    status_str = status.value if isinstance(status, MatchStatus) else str(status)
+    match_req_resp = supabase_client.table("match_requests").select("*").eq("id", match_request_id).execute()
+    match_req = match_req_resp.data[0] if match_req_resp.data else None
     if not match_req:
         return None
 
+    update_data = {"status": status_str, "updated_at": datetime.datetime.utcnow().isoformat()}
+
+    # Determine which side is performing the acceptance
+    if status == MatchStatus.accepted and contact_mode and contact_value:
+        if profile_id == match_req.get("offerer_id"):
+            update_data["offerer_contact_mode"] = contact_mode
+            update_data["offerer_contact_value"] = contact_value
+        elif profile_id == match_req.get("requester_id"):
+            update_data["requester_contact_mode"] = contact_mode
+            update_data["requester_contact_value"] = contact_value
+
+    resp = supabase_client.table("match_requests").update(update_data).eq("id", match_request_id).execute()
+    match_req = resp.data[0] if resp.data else None
+
+    # Karma and marking as matched
     if status == MatchStatus.accepted:
         if match_req.get("offer_id"):
             mark_offer_matched(supabase_client, match_req["offer_id"])
@@ -412,16 +450,33 @@ def update_match_request_status(
             mark_request_matched(supabase_client, match_req["request_id"])
             if match_req.get("offerer_id"):
                 add_karma(supabase_client, match_req["offerer_id"], 5)
-        
+
         # Send emails
         requester_profile = get_profile(supabase_client, match_req["requester_id"])
         offerer_profile = get_profile(supabase_client, match_req["offerer_id"])
         if requester_profile and offerer_profile:
             requester_user = UserEmailObj(requester_profile)
             offerer_user = UserEmailObj(offerer_profile)
-            send_match_accepted_email(requester_user, offerer_user)
+
+            # Use stored contact info from match_request
+            requester_contact = {
+                "mode": match_req.get("requester_contact_mode"),
+                "value": match_req.get("requester_contact_value"),
+            }
+            offerer_contact = {
+                "mode": match_req.get("offerer_contact_mode"),
+                "value": match_req.get("offerer_contact_value"),
+            }
+
+            send_match_accepted_email(
+                requester_user,
+                offerer_user,
+                user1_contact=requester_contact,
+                user2_contact=offerer_contact
+            )
 
     return match_req
+
 
 
 def cancel_match_request(supabase_client: SupabaseClient, match_request_id: int, requester_id: str):
@@ -545,27 +600,28 @@ def accept_match_request(
     contact_value: str = None,
 ):
     """
-    Accept a match request. Only the offerer can accept.
+    Accept a match request. The profile performing the acceptance can be either the offerer or requester.
     """
-    # Ensure the profile is the offerer
+    # Fetch match request without filtering by offerer
     resp = supabase_client.table("match_requests")\
         .select("*")\
         .eq("id", match_request_id)\
-        .eq("offerer_id", profile_id)\
         .execute()
 
-    match_req = resp.data[0] if not resp.error and resp.data else None
+    match_req = resp.data[0] if resp.data else None
     if not match_req:
         return None
 
-    # Use the central update function, passing contact info
+    # Call the central updater, passing the profile_id of the accepter
     return update_match_request_status(
         supabase_client,
         match_request_id,
         status=MatchStatus.accepted,
+        profile_id=profile_id,
         contact_mode=contact_mode,
         contact_value=contact_value
     )
+
 
 
 def decline_match_request(supabase_client: SupabaseClient, match_request_id: int, profile_id: str):

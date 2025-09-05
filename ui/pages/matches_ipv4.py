@@ -172,6 +172,7 @@ def display_match(db: Client, match: UIMatch, section: str, profile_id: str, idx
             toggle_key = f"show_msg_box_{idx}"
             if st.button("Send Match Request", key=f"send-potential-{idx}"):
                 st.session_state[toggle_key] = True
+
             if st.session_state.get(toggle_key, False):
                 custom_message = st.text_area("Custom message (optional)", key=f"msg-potential-{idx}")
                 contact_mode = st.selectbox(
@@ -183,21 +184,27 @@ def display_match(db: Client, match: UIMatch, section: str, profile_id: str, idx
                     "Your contact details",
                     key=f"contact-value-{idx}"
                 )
+
                 if st.button("Submit Request", key=f"submit-{idx}"):
                     if not contact_value:
                         st.error("Please provide your contact details.")
                     else:
+                        # Determine initiator type: 'request' if user owns the request, 'offer' if user owns the offer
+                        initiator_type = "request" if profile_id == match.requester_id else "offer"
+
                         crud.create_match_request(
                             db,
-                            requester_id=profile_id,
+                            caller_id=profile_id,
                             offer_id=match.offer_id,
                             request_id=match.request_id,
                             message=custom_message,
                             contact_mode=contact_mode,
-                            contact_value=contact_value
+                            contact_value=contact_value,
+                            initiator_type=initiator_type
                         )
-                        st.success("Request sent!")
+                        st.success("✅ Match request sent successfully!")
                         st.session_state[toggle_key] = False
+
 
         elif section == "sent":
             st.write(f"**To:** {match.offer_user_name or '-'} ({match.offer_postal or '-'})")
@@ -206,19 +213,39 @@ def display_match(db: Client, match: UIMatch, section: str, profile_id: str, idx
                 st.success("Match request cancelled!")
 
         elif section == "received":
-            st.write(f"**From:** {match.request_user_name or '-'} ({match.request_postal or '-'})")
+            is_offerer = profile_id == match.offerer_id
+            is_requester = profile_id == match.requester_id
+
+            sender_name = match.request_user_name if is_offerer else match.offer_user_name
+            sender_postal = match.request_postal if is_offerer else match.offer_postal
+
+            st.write(f"**From:** {sender_name or '-'} ({sender_postal or '-'})")
+
             col1, col2 = st.columns(2)
             with col1:
+                contact_mode_key = f"accept-contact-mode-{idx}"
+                contact_value_key = f"accept-contact-value-{idx}"
+
+                # Pre-fill contact info if it exists
+                existing_contact_mode = match.requester_contact_mode if is_requester else match.offerer_contact_mode
+                existing_contact_value = match.requester_contact_value if is_requester else match.offerer_contact_value
+
                 contact_mode = st.selectbox(
                     "Preferred contact method for this match",
                     options=["Email", "Phone", "WhatsApp"],
-                    key=f"accept-contact-mode-{idx}"
+                    key=contact_mode_key,
+                    index=["Email", "Phone", "WhatsApp"].index(existing_contact_mode)
+                        if existing_contact_mode in ["Email", "Phone", "WhatsApp"] else 0
                 )
                 contact_value = st.text_input(
                     "Provide contact details to share",
-                    key=f"accept-contact-value-{idx}"
+                    key=contact_value_key,
+                    value=existing_contact_value or ""
                 )
-                if st.button("Accept", key=f"accept-{idx}"):
+
+                # Disable accept if contact info already exists
+                accept_disabled = bool(existing_contact_value)
+                if st.button("Accept", key=f"accept-{idx}", disabled=accept_disabled):
                     if not contact_value:
                         st.error("Please provide contact details to accept the match.")
                     else:
@@ -230,6 +257,7 @@ def display_match(db: Client, match: UIMatch, section: str, profile_id: str, idx
                             contact_value=contact_value
                         )
                         st.success("Request accepted!")
+
             with col2:
                 if st.button("Decline", key=f"decline-{idx}"):
                     crud.decline_match_request(db, match.id, profile_id)

@@ -26,7 +26,7 @@ class Profile(Base):
     full_name = Column(String(100), nullable=False)
     email = Column(String(255), nullable=True, unique=True)  # NEW: email field
     postal_code = Column(String(20), nullable=False)
-    phone_hash = Column(String(64), nullable=True)  # SHA256 hash
+    phone = Column(String(64), nullable=True) 
     share_phone = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     karma = Column(Integer, default=0)

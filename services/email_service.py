@@ -1,10 +1,23 @@
 # services/email_service.py
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
-import streamlit as st
+import ssl, certifi, os
 
-SENDGRID_API_KEY = st.secrets["SENDGRID_API_KEY"]
-FROM_EMAIL = st.secrets["FROM_EMAIL"]
+# Force Python to use certifi’s CA bundle
+os.environ["SSL_CERT_FILE"] = certifi.where()
+
+SENDGRID_API_KEY = None
+FROM_EMAIL = None
+
+# Try env vars first, fallback to st.secrets
+try:
+    import streamlit as st
+    SENDGRID_API_KEY = st.secrets["SENDGRID_API_KEY"]
+    FROM_EMAIL = st.secrets["FROM_EMAIL"]
+except Exception:
+    SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
+    FROM_EMAIL = os.getenv("FROM_EMAIL")
+
 
 def send_email(to_email, subject, html_content):
     message = Mail(
@@ -17,36 +30,63 @@ def send_email(to_email, subject, html_content):
         sg = SendGridAPIClient(SENDGRID_API_KEY)
         response = sg.send(message)
         print(f"Email sent to {to_email}: {response.status_code}")
+        return True
     except Exception as e:
         print(f"Error sending email to {to_email}: {e}")
+        return False
+
+
+def format_contact_info(profile, contact=None):
+    """
+    Returns formatted contact info for email or UI display.
+    - contact: dict with 'mode' and 'value' (preferred contact)
+    - profile: user profile object with 'share_phone' and 'phone'
+    """
+    lines = []
+    if contact and contact.get("mode") and contact.get("value"):
+        lines.append(f"{contact['mode']}: {contact['value']}")
+    if getattr(profile, "share_phone", False) and getattr(profile, "phone", None):
+        lines.append(f"Phone (from profile): {profile.phone}")
+    if not lines:
+        lines.append(f"Email: {getattr(profile, 'email', '-')}")
+    return "<br>".join(lines)
+
 
 def send_match_request_email(receiver, sender):
     subject = "New match request waiting for your response on BetterBarter!"
     html_content = f"""
-    Hi {receiver.name},<br><br>
-    {sender.name} has sent you a match request on BetterBarter.<br>
+    Hi {receiver.full_name},<br><br>
+    {sender.full_name} has sent you a match request on BetterBarter at betterbarter.streamlit.app <br>
     Log in to your account to review and respond.<br><br>
     Happy helping! :)
     """
     send_email(receiver.email, subject, html_content)
 
-def send_match_accepted_email(user1, user2):
-    subject = "Your match request was accepted!"
+
+def send_match_accepted_email(user1, user2, user1_contact=None, user2_contact=None):
+    """
+    Send email to both users when a match is accepted.
+    user1_contact and user2_contact are dicts with keys 'mode' and 'value'.
+    """
+    subject = "Your match request was accepted on BetterBarter!"
+
     html_content_user1 = f"""
-    Hi {user1.name},<br><br>
-    Good news! Your match with {user2.name} has been accepted.<br>
-    Contact Info:<br>
-    Email: {user2.email}<br>
-    Phone: {user2.phone or 'Not provided'}<br><br>
-    Happy trading!
+    Hi {user1.full_name},<br><br>
+    Good news! Your match with {user2.full_name} has been accepted.<br>
+    Contact Info to reach {user2.full_name}:<br>
+    {format_contact_info(user2, user2_contact)}<br><br>
+    Please feel free to contact {user2.full_name}.<br><br>
+    Happy helping!
     """
+
     html_content_user2 = f"""
-    Hi {user2.name},<br><br>
-    Good news! Your match with {user1.name} has been accepted.<br>
-    Contact Info:<br>
-    Email: {user1.email}<br>
-    Phone: {user1.phone or 'Not provided'}<br><br>
-    Happy trading!
+    Hi {user2.full_name},<br><br>
+    Good news! Your match with {user1.full_name} has been accepted.<br>
+    Contact Info to reach {user1.full_name}:<br>
+    {format_contact_info(user1, user1_contact)}<br><br>
+    Please feel free to contact {user1.full_name}.<br><br>
+    Happy helping!
     """
+
     send_email(user1.email, subject, html_content_user1)
     send_email(user2.email, subject, html_content_user2)
