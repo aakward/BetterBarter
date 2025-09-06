@@ -24,7 +24,7 @@ def main():
     profile = crud.get_profile(db, profile_id)
     if profile:
         st.info(f"🌟 Your Karma: **{profile['karma']}**")
-        
+
     # -------------------------
     # Create a new offer
     # -------------------------
@@ -34,7 +34,7 @@ def main():
         description = st.text_area("Description")
         category = st.selectbox("Category", helpers.CATEGORIES)
         image_file = st.file_uploader(
-            "Upload an image (optional, <2MB)", 
+            "Upload an image (optional, <2MB)",
             type=["png", "jpg", "jpeg", "heic", "heif"]
         )
         submitted = st.form_submit_button("Add Offer")
@@ -44,18 +44,16 @@ def main():
                 st.error("Title is required.")
                 st.stop()
 
-            image_file_name = None  # store file name in DB, not signed URL
+            image_file_name = None
             if image_file:
                 size_mb = len(image_file.getvalue()) / (1024 * 1024)
                 if size_mb > MAX_IMAGE_SIZE_MB:
                     st.error("Image exceeds 2MB size limit.")
                     st.stop()
 
-                # Generate unique file name
                 ext = image_file.name.split(".")[-1].lower()
                 image_file_name = f"{profile_id}_{uuid.uuid4().hex}.{ext}"
 
-                # Upload file
                 try:
                     res = db.storage.from_(OFFER_BUCKET_NAME).upload(
                         image_file_name, image_file.getvalue()
@@ -79,12 +77,12 @@ def main():
             helpers.rerun()
 
     # -------------------------
-    # List user's offers
+    # List user's offers with Deactivate/Reactivate buttons
     # -------------------------
     st.subheader("My Offers")
-    offers = crud.get_all_offers(db, exclude_profile_id=None)
+    offers = crud.get_all_offers(db, exclude_profile_id=None, include_inactive=True)
     user_offers = [o for o in offers if o["profile_id"] == profile_id]
-    
+
     if user_offers:
         for o in user_offers:
             st.write(f"**{o['title']}** - {o.get('category', '—')}")
@@ -94,14 +92,38 @@ def main():
                     o["image_file_name"], 60*60*24
                 )
                 st.image(signed_url_resp.get("signedURL"), width=200)
-            st.write(f"Active: {o.get('is_active', True)}")
+
+            st.write(f"Status: {'Active' if o.get('is_active', True) else 'Inactive'}")
+
+            # Deactivate / Reactivate buttons
+            if o.get("is_active", True):
+                deactivate_key = f"deactivate_offer_{o['id']}"
+                if st.button("Deactivate", key=deactivate_key):
+                    try:
+                        crud.toggle_offer_active(db, o['id'], False)
+                        st.success(f"Offer '{o['title']}' has been deactivated.")
+                        helpers.rerun()
+                    except Exception as e:
+                        st.error(f"Failed to deactivate offer: {e}")
+            else:
+                reactivate_key = f"reactivate_offer_{o['id']}"
+                if st.button("Reactivate", key=reactivate_key):
+                    try:
+                        crud.toggle_offer_active(db, o['id'], True)
+                        st.success(f"Offer '{o['title']}' has been reactivated.")
+                        helpers.rerun()
+                    except Exception as e:
+                        st.error(f"Failed to reactivate offer: {e}")
 
             # Delete button
             delete_key = f"delete_offer_{o['id']}"
             if st.button("Delete", key=delete_key):
-                crud.delete_offer(db, o['id'])
-                st.success(f"Offer '{o['title']}' has been deleted.")
-                helpers.rerun()
+                try:
+                    crud.delete_offer(db, o['id'], profile_id)
+                    st.success(f"Offer '{o['title']}' has been deleted.")
+                    helpers.rerun()
+                except Exception as e:
+                    st.error(f"Failed to delete offer: {e}")
 
             st.write("---")
     else:

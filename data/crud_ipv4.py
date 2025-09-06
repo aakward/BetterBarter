@@ -258,7 +258,6 @@ def create_match_request(
     - Caller owns a request and wants an offer (initiator_type="request")
     - Caller owns an offer and wants to respond to a request (initiator_type="offer")
     """
-
     # --- Basic validations ---
     if not can_send_match_request(supabase_client, caller_id):
         raise Exception(f"Daily limit of {MAX_MATCH_REQUESTS_PER_DAY} match requests reached.")
@@ -278,9 +277,11 @@ def create_match_request(
         requester_id = caller_id
 
         if offer_id:
-            resp = supabase_client.table("offers").select("profile_id").eq("id", offer_id).execute()
+            resp = supabase_client.table("offers").select("profile_id, is_active").eq("id", offer_id).execute()
             if not resp.data:
                 raise Exception("Offer not found")
+            if not resp.data[0].get("is_active", True):
+                raise Exception("Cannot send a match request to a deactivated offer")
             offerer_id = resp.data[0]["profile_id"]
 
         if offerer_id == caller_id:
@@ -292,9 +293,11 @@ def create_match_request(
         offerer_id = caller_id
 
         if request_id:
-            resp = supabase_client.table("requests").select("profile_id").eq("id", request_id).execute()
+            resp = supabase_client.table("requests").select("profile_id, is_active").eq("id", request_id).execute()
             if not resp.data:
                 raise Exception("Request not found")
+            if not resp.data[0].get("is_active", True):
+                raise Exception("Cannot send a match request to a deactivated request")
             requester_id = resp.data[0]["profile_id"]
 
         if requester_id == caller_id:
@@ -333,7 +336,6 @@ def create_match_request(
         other_profile = get_profile(supabase_client, offerer_id if initiator_type == "request" else requester_id)
 
         if caller_profile and other_profile:
-            # Pass contact info as dict for email formatting
             send_match_request_email(
                 receiver=UserEmailObj(other_profile),
                 sender=UserEmailObj(caller_profile),
@@ -341,6 +343,7 @@ def create_match_request(
             )
 
     return resp.data[0] if resp.data else None
+
 
 
 
@@ -355,6 +358,9 @@ def get_match_requests_for_offer(supabase_client: SupabaseClient, offer_id: int,
 
 
 def get_match_requests_by_requester(supabase_client: SupabaseClient, requester_id: str, status: str = None):
+    """
+    Returns sent match requests, excluding any linked offer/request that is deactivated.
+    """
     query = (
         supabase_client
         .table("match_requests")
@@ -362,11 +368,11 @@ def get_match_requests_by_requester(supabase_client: SupabaseClient, requester_i
             """
             *,
             offers:offer_id (
-                id, title, description, image_file_name,
+                id, title, description, image_file_name, is_active,
                 profiles:profile_id (id, full_name, postal_code)
             ),
             requests:request_id (
-                id, title, description, image_file_name,
+                id, title, description, image_file_name, is_active,
                 profiles:profile_id (id, full_name, postal_code)
             )
             """
@@ -375,36 +381,51 @@ def get_match_requests_by_requester(supabase_client: SupabaseClient, requester_i
     )
     if status:
         query = query.eq("status", status)
+
     resp = query.execute()
-    return resp.data
+    # Filter out any deactivated offers or requests
+    filtered = [
+        mr for mr in resp.data
+        if mr.get("offers") and mr["offers"].get("is_active", True)
+        and mr.get("requests") and mr["requests"].get("is_active", True)
+    ]
+    return filtered
 
 
 
 def get_match_requests_for_offerer(db, offerer_id: str, status: str = None):
+    """
+    Returns incoming match requests, excluding any linked offer/request that is deactivated.
+    """
     query = (
         db.table("match_requests")
         .select(
             """
             *,
             offers:offer_id (
-                id, title, description, image_file_name,
+                id, title, description, image_file_name, is_active,
                 profiles:profile_id (id, full_name, postal_code)
             ),
             requests:request_id (
-                id, title, description, image_file_name,
+                id, title, description, image_file_name, is_active,
                 profiles:profile_id (id, full_name, postal_code)
             )
             """
         )
         .eq("offerer_id", offerer_id)
-        .neq("requester_id", offerer_id)  # <--- exclude self-requests
+        .neq("requester_id", offerer_id)
     )
     if status:
         query = query.eq("status", status)
 
     resp = query.execute()
-    return resp.data
-
+    # Filter out any deactivated offers or requests
+    filtered = [
+        mr for mr in resp.data
+        if mr.get("offers") and mr["offers"].get("is_active", True)
+        and mr.get("requests") and mr["requests"].get("is_active", True)
+    ]
+    return filtered
 
 
 
@@ -499,20 +520,25 @@ def mark_match_request_notified(supabase_client: SupabaseClient, match_request_i
         .execute()
     return resp.data[0] if resp.data else None
 
-def get_all_requests(supabase_client: SupabaseClient, exclude_profile_id: str = None):
+def get_all_requests(supabase_client: SupabaseClient, exclude_profile_id: str = None, include_inactive: bool = False):
     query = supabase_client.table("requests").select("*")
     if exclude_profile_id:
         query = query.neq("profile_id", exclude_profile_id)
+    if not include_inactive:
+        query = query.eq("is_active", True)
     resp = query.execute()
     return resp.data if resp.data else []
 
 
-def get_all_offers(supabase_client: SupabaseClient, exclude_profile_id: str = None):
+def get_all_offers(supabase_client: SupabaseClient, exclude_profile_id: str = None, include_inactive: bool = False):
     query = supabase_client.table("offers").select("*")
     if exclude_profile_id:
         query = query.neq("profile_id", exclude_profile_id)
+    if not include_inactive:
+        query = query.eq("is_active", True)
     resp = query.execute()
     return resp.data if resp.data else []
+
 
 
 # -----------------------------
@@ -601,8 +627,9 @@ def accept_match_request(
 ):
     """
     Accept a match request. The profile performing the acceptance can be either the offerer or requester.
+    Prevents accepting if the linked offer or request is deactivated.
     """
-    # Fetch match request without filtering by offerer
+    # Fetch match request
     resp = supabase_client.table("match_requests")\
         .select("*")\
         .eq("id", match_request_id)\
@@ -612,7 +639,21 @@ def accept_match_request(
     if not match_req:
         return None
 
-    # Call the central updater, passing the profile_id of the accepter
+    # --- Check if linked offer/request are active ---
+    offer_id = match_req.get("offer_id")
+    request_id = match_req.get("request_id")
+
+    if offer_id:
+        offer_resp = supabase_client.table("offers").select("is_active").eq("id", offer_id).execute()
+        if not offer_resp.data or not offer_resp.data[0].get("is_active", True):
+            raise Exception("Cannot accept match: the offer has been deactivated.")
+
+    if request_id:
+        request_resp = supabase_client.table("requests").select("is_active").eq("id", request_id).execute()
+        if not request_resp.data or not request_resp.data[0].get("is_active", True):
+            raise Exception("Cannot accept match: the request has been deactivated.")
+
+    # Call the central updater
     return update_match_request_status(
         supabase_client,
         match_request_id,
@@ -644,3 +685,10 @@ def decline_match_request(supabase_client: SupabaseClient, match_request_id: int
     updated = update_match_request_status(supabase_client, match_request_id, MatchStatus.declined)
 
     return updated
+
+
+def toggle_offer_active(supabase_client: SupabaseClient, offer_id: int, is_active: bool):
+    return update_offer(supabase_client, offer_id, is_active=is_active)
+
+def toggle_request_active(supabase_client: SupabaseClient, request_id: int, is_active: bool):
+    return update_request(supabase_client, request_id, is_active=is_active)

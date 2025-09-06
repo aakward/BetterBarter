@@ -24,7 +24,7 @@ def main():
     profile = crud.get_profile(db, profile_id)
     if profile:
         st.info(f"🌟 Your Karma: **{profile['karma']}**")
-        
+
     # -------------------------
     # Create a new request
     # -------------------------
@@ -79,10 +79,10 @@ def main():
             helpers.rerun()
 
     # -------------------------
-    # List user's requests
+    # List user's requests with Deactivate/Reactivate buttons
     # -------------------------
     st.subheader("My Requests")
-    requests = crud.get_all_requests(db, exclude_profile_id=None)
+    requests = crud.get_all_requests(db, exclude_profile_id=None, include_inactive=True)
     user_requests = [r for r in requests if r["profile_id"] == profile_id]
 
     if user_requests:
@@ -94,7 +94,22 @@ def main():
                     r["image_file_name"], 60*60*24
                 )
                 st.image(signed_url_resp.get("signedURL"), width=200)
-            st.write(f"Active: {r.get('is_active', True)}")
+
+            st.write(f"Status: {'Active' if r.get('is_active', True) else 'Inactive'}")
+
+            # Deactivate / Reactivate buttons
+            if r.get("is_active", True):
+                deactivate_key = f"deactivate_request_{r['id']}"
+                if st.button("Deactivate", key=deactivate_key):
+                    crud.toggle_request_active(db, r['id'], False)
+                    st.success(f"Request '{r['title']}' has been deactivated.")
+                    helpers.rerun()
+            else:
+                reactivate_key = f"reactivate_request_{r['id']}"
+                if st.button("Reactivate", key=reactivate_key):
+                    crud.toggle_request_active(db, r['id'], True)
+                    st.success(f"Request '{r['title']}' has been reactivated.")
+                    helpers.rerun()
 
             # Delete button
             delete_key = f"delete_request_{r['id']}"
@@ -106,6 +121,7 @@ def main():
             st.write("---")
     else:
         st.info("You have no requests yet.")
+
 
 
 if __name__ == "__main__":
