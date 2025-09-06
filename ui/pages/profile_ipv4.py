@@ -26,6 +26,8 @@ def main():
 
     st.subheader("Profile Details")
     st.write(f"**Full Name:** {profile.get('full_name', '—')}")
+    st.write(f"**Email Address:** {profile.get('email', '—')}")
+    st.caption("Notifications regarding matches would be sent to this email address")
     st.write(f"**Postal Code:** {profile.get('postal_code', '—')}")
     st.write(f"**Member since:** {profile.get('created_at', '—')[:10]}")
     st.write(f"**Phone shared:** {'Yes' if profile.get('share_phone') else 'No'}")

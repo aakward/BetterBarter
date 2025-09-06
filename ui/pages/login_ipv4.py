@@ -102,6 +102,7 @@ def main():
                             full_name=full_name,
                             postal_code=pin_code,
                             phone=phone,
+                            email=email, 
                             share_phone=share_phone
                         )
                         auth.login_user(profile["id"])

@@ -28,17 +28,15 @@ def create_profile(
     full_name: str,
     postal_code: str,
     phone: str = None,
+    email: str = None,
     share_phone: bool = False
 ):
-    """
-    Create a profile entry in Supabase.
-    """
-
     response = supabase_client.table("profiles").insert({
         "id": supabase_id,
         "full_name": full_name,
         "postal_code": postal_code,
         "phone": phone,
+        "email": email,
         "share_phone": share_phone,
         "karma": 1
     }).execute()
