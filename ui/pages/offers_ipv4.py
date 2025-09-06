@@ -119,7 +119,7 @@ def main():
             delete_key = f"delete_offer_{o['id']}"
             if st.button("Delete", key=delete_key):
                 try:
-                    crud.delete_offer(db, o['id'], profile_id)
+                    crud.delete_offer(db, o['id'])
                     st.success(f"Offer '{o['title']}' has been deleted.")
                     helpers.rerun()
                 except Exception as e:

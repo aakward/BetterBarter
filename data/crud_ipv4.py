@@ -6,7 +6,7 @@ from data.models import MatchStatus
 from services.email_service import send_match_request_email, send_match_accepted_email
 import streamlit as st
 
-MAX_MATCH_REQUESTS_PER_DAY = 30  # adjustable
+MAX_MATCH_REQUESTS_PER_DAY = 3  # adjustable
 REQUEST_BUCKET_NAME = "request-images"
 OFFER_BUCKET_NAME = "offer-images"
 
@@ -105,16 +105,20 @@ def update_offer(supabase_client: SupabaseClient, offer_id: int, **kwargs):
 
 
 def delete_offer(supabase_client: SupabaseClient, offer_id: int):
-    response = supabase_client.table("offers").select("*").eq("id", offer_id).execute().data
-    offers = response.data or []
-
+    # Fetch offer
+    resp = supabase_client.table("offers").select("*").eq("id", offer_id).execute()
+    offers = resp.data or []
     if not offers:
         return None
-    
-    offer=offers[0]
 
+    offer = offers[0]
+
+    # Deduct karma
     add_karma(supabase_client, offer["profile_id"], points=-3)
-    
+
+    # Delete related match requests
+    supabase_client.table("match_requests").delete().eq("offer_id", offer_id).execute()
+
     # Delete image from storage if exists
     image_file_name = offer.get("image_file_name")
     if image_file_name:
@@ -123,7 +127,7 @@ def delete_offer(supabase_client: SupabaseClient, offer_id: int):
         except Exception as e:
             print(f"Warning: could not delete image {image_file_name}: {e}")
 
-    # Delete the request from DB
+    # Delete the offer itself
     del_response = supabase_client.table("offers").delete().eq("id", offer_id).execute()
     return del_response.data[0] if del_response.data else None
 
@@ -168,29 +172,32 @@ def update_request(supabase_client: SupabaseClient, request_id: int, **kwargs):
 
 
 def delete_request(supabase_client: SupabaseClient, request_id: int):
-    # Fetch the request
-    response = supabase_client.table("requests").select("*").eq("id", request_id).execute()
-    requests = response.data or []
-
+    # Fetch request
+    resp = supabase_client.table("requests").select("*").eq("id", request_id).execute()
+    requests = resp.data or []
     if not requests:
         return None
 
-    request = requests[0]
+    req = requests[0]
 
     # Deduct karma
-    add_karma(supabase_client, request["profile_id"], points=-1)
+    add_karma(supabase_client, req["profile_id"], points=-1)
+
+    # Delete related match requests
+    supabase_client.table("match_requests").delete().eq("request_id", request_id).execute()
 
     # Delete image from storage if exists
-    image_file_name = request.get("image_file_name")
+    image_file_name = req.get("image_file_name")
     if image_file_name:
         try:
             supabase_client.storage.from_(REQUEST_BUCKET_NAME).remove([image_file_name])
         except Exception as e:
             print(f"Warning: could not delete image {image_file_name}: {e}")
 
-    # Delete the request from DB
+    # Delete the request itself
     del_response = supabase_client.table("requests").delete().eq("id", request_id).execute()
     return del_response.data[0] if del_response.data else None
+
 
 def mark_request_matched(supabase_client: SupabaseClient, request_id: int):
     request = supabase_client.table("requests").update({"is_active": False}).eq("id", request_id).execute()
@@ -233,14 +240,24 @@ def can_send_match_request(supabase_client: SupabaseClient, requester_id: str) -
     return response.count < MAX_MATCH_REQUESTS_PER_DAY
 
 
-def get_existing_match_request(supabase_client: SupabaseClient, requester_id: str, request_id: int = None, offer_id: int = None):
-    query = supabase_client.table("match_requests").select("*").eq("requester_id", requester_id)
+def get_existing_match_request(
+    supabase_client: SupabaseClient,
+    initiator_id: str,
+    request_id: int = None,
+    offer_id: int = None
+):
+    """
+    Checks if the given user has already created a match request for the same offer/request.
+    """
+    query = supabase_client.table("match_requests").select("*").eq("initiator_id", initiator_id)
+
     if request_id is not None:
         query = query.eq("request_id", request_id)
     if offer_id is not None:
         query = query.eq("offer_id", offer_id)
-    response = query.execute()
-    return response.data[0] if response.data else None
+
+    resp = query.execute()
+    return resp.data[0] if resp.data else None
 
 
 def create_match_request(
@@ -311,7 +328,7 @@ def create_match_request(
         raise Exception("Invalid initiator_type. Must be 'request' or 'offer'.")
 
     # --- Prevent duplicate match requests ---
-    if get_existing_match_request(supabase_client, caller_id, request_id, offer_id):
+    if get_existing_match_request(supabase_client, initiator_id=caller_id, request_id=request_id, offer_id=offer_id):
         raise Exception("You have already sent a match request here.")
 
     # --- Prepare match data ---

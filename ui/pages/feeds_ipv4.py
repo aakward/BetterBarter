@@ -52,7 +52,7 @@ def display_feed_item(db, caller_id, item, item_type="request"):
         # ---- Bottom row: match request section ----
         existing_match = crud.get_existing_match_request(
             db,
-            caller_id,
+            initiator_id=caller_id,
             request_id=item["id"] if item_type == "request" else None,
             offer_id=item["id"] if item_type == "offer" else None
         )
