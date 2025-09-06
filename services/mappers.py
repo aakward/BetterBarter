@@ -1,6 +1,7 @@
 from data.ui_models import UIMatch
 from datetime import datetime
 from utils.helpers import parse_datetime
+from data import crud_ipv4 as crud
 
 def _normalize_status(status) -> str:
     if status is None:
@@ -27,12 +28,31 @@ def build_ui_match_from_match(match: dict):
     )
 
 
-def build_ui_match_from_match_request(mr: dict) -> UIMatch:
-    offer = mr.get("offers")  # because of the alias in select
+def build_ui_match_from_match_request(mr: dict, db=None) -> UIMatch:
+    offer = mr.get("offers")
     request = mr.get("requests")
 
-    offer_profile = offer.get("profiles") if offer else None
-    request_profile = request.get("profiles") if request else None
+    # --- Offer profile ---
+    offer_profiles = offer.get("profiles") if offer else None
+    if isinstance(offer_profiles, list):
+        offer_profile = offer_profiles[0] if offer_profiles else None
+    elif isinstance(offer_profiles, dict):
+        offer_profile = offer_profiles
+    elif mr.get("offerer_id") and db:
+        offer_profile = crud.get_profile(db, mr["offerer_id"])
+    else:
+        offer_profile = None
+
+    # --- Request profile ---
+    request_profiles = request.get("profiles") if request else None
+    if isinstance(request_profiles, list):
+        request_profile = request_profiles[0] if request_profiles else None
+    elif isinstance(request_profiles, dict):
+        request_profile = request_profiles
+    elif mr.get("requester_id") and db:
+        request_profile = crud.get_profile(db, mr["requester_id"])
+    else:
+        request_profile = None
 
     return UIMatch(
         id=mr["id"],
@@ -45,8 +65,8 @@ def build_ui_match_from_match_request(mr: dict) -> UIMatch:
         status=_normalize_status(mr.get("status")),
         created_at=parse_datetime(mr.get("created_at")),
         message=mr.get("message"),
-        initiator_id=mr.get("requester_id"),
-        responder_id=mr.get("offerer_id"),
+        requester_id=mr.get("requester_id"),
+        offerer_id=mr.get("offerer_id"),
 
         # enriched fields
         offer_title=offer.get("title") if offer else None,
@@ -56,12 +76,13 @@ def build_ui_match_from_match_request(mr: dict) -> UIMatch:
         offer_postal=offer_profile.get("postal_code") if offer_profile else None,
         request_postal=request_profile.get("postal_code") if request_profile else None,
 
-        # new contact info fields
+        # contact info
         offerer_contact_mode=mr.get("offerer_contact_mode"),
         offerer_contact_value=mr.get("offerer_contact_value"),
         requester_contact_mode=mr.get("requester_contact_mode"),
         requester_contact_value=mr.get("requester_contact_value"),
     )
+
 
 
 
@@ -93,6 +114,15 @@ def build_ui_match_from_offer_request_pair(offer: dict, request: dict) -> UIMatc
 
         # unused for potential matches
         message=None,
-        initiator_id=None,
-        responder_id=None,
     )
+
+
+
+def get_profile(profile_data):
+    if not profile_data:
+        return None
+    if isinstance(profile_data, list) and len(profile_data) > 0:
+        return profile_data[0]
+    if isinstance(profile_data, dict):
+        return profile_data
+    return None

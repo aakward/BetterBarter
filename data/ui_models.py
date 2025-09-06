@@ -20,8 +20,8 @@ class UIMatch:
     status: str = "pending"
     created_at: datetime = None
     message: Optional[str] = None
-    initiator_id: Optional[str] = None
-    responder_id: Optional[str] = None
+    requester_id: Optional[str] = None
+    offerer_id: Optional[str] = None
     # new contact info fields
     offerer_contact_mode: Optional[str] = None
     offerer_contact_value: Optional[str] = None

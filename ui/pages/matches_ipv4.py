@@ -75,7 +75,7 @@ def main():
     # -------------------------
     with tabs[1]:
         sent_requests = crud.get_match_requests_by_requester(db, profile_id)
-        ui_sent_requests = [build_ui_match_from_match_request(mr) for mr in sent_requests]
+        ui_sent_requests = [build_ui_match_from_match_request(mr,db) for mr in sent_requests]
         st.subheader(f"Sent Requests ({len(ui_sent_requests)})")
         if ui_sent_requests:
             for idx, match in enumerate(ui_sent_requests):
@@ -88,7 +88,7 @@ def main():
     # -------------------------
     with tabs[2]:
         incoming_requests = crud.get_match_requests_for_offerer(db, profile_id, status="pending")
-        ui_incoming_requests = [build_ui_match_from_match_request(mr) for mr in incoming_requests]
+        ui_incoming_requests = [build_ui_match_from_match_request(mr, db) for mr in incoming_requests]
         st.subheader(f"Incoming Requests ({len(ui_incoming_requests)})")
         if ui_incoming_requests:
             for idx, match in enumerate(ui_incoming_requests):
@@ -100,14 +100,25 @@ def main():
     # Tab 4: Completed Matches
     # -------------------------
     with tabs[3]:
-        all_matches = db.table("match_requests").select("*").or_(
+        all_matches = db.table("match_requests").select("""
+            *,
+            offers:offer_id (
+                id, title, description, image_file_name,
+                profiles:profile_id (id, full_name, postal_code)
+            ),
+            requests:request_id (
+                id, title, description, image_file_name,
+                profiles:profile_id (id, full_name, postal_code)
+            )
+        """).or_(
             f"requester_id.eq.{profile_id},offerer_id.eq.{profile_id}"
         ).execute().data
+
         matched_requests = [m for m in all_matches if m.get("status") in ("accepted", "completed")]
         st.subheader(f"Completed Matches ({len(matched_requests)})")
         if matched_requests:
-            for idx, match in enumerate(matched_requests):
-                ui_match = build_ui_match_from_match_request(match) if isinstance(match, dict) else match
+            for idx, match_req in enumerate(matched_requests):
+                ui_match = build_ui_match_from_match_request(match_req, db) if isinstance(match_req, dict) else match_req
                 display_match(db, ui_match, section="matched", profile_id=profile_id, idx=idx)
         else:
             st.info("No matched requests yet!")
@@ -159,7 +170,7 @@ def display_match(db: Client, match: UIMatch, section: str, profile_id: str, idx
                 st.write(f"Owner: **{match.request_user_name or '-'}** ({match.request_postal or '-'})")
 
         st.markdown("---")
-        st.write(f"**Status:** {match.status}")
+        st.write(f"**Status:** {match.status.capitalize()}")
         if match.created_at:
             st.caption(f"Created at: {match.created_at.strftime('%Y-%m-%d %H:%M')}")
         if match.message:
@@ -272,13 +283,24 @@ def display_match(db: Client, match: UIMatch, section: str, profile_id: str, idx
 
         elif section == "matched":
             st.success("✅ Matched / Completed")
-            st.write(f"Participants: {match.offer_user_name or '-'} ↔ {match.request_user_name or '-'}")
 
-            # Show contact info for the other party
+            # Contact info (decide other party based on profile_id)
             if profile_id == match.requester_id:
-                st.write(f"Contact {match.offer_user_name}: {match.offerer_contact_value or '-'} ({match.offerer_contact_mode or '-'})")
+                other_name = match.offer_user_name
+                other_contact_mode = match.offerer_contact_mode
+                other_contact_value = match.offerer_contact_value
             elif profile_id == match.offerer_id:
-                st.write(f"Contact {match.request_user_name}: {match.requester_contact_value or '-'} ({match.requester_contact_mode or '-'})")
+                other_name = match.request_user_name
+                other_contact_mode = match.requester_contact_mode
+                other_contact_value = match.requester_contact_value
+            else:
+                other_name = "-"
+                other_contact_mode = "-"
+                other_contact_value = "-"
+
+            st.markdown(f"📞 **Contact {other_name or '-'}**: {other_contact_value or '-'} ({other_contact_mode or '-'})")
+
+
 
 
 if __name__ == "__main__":
