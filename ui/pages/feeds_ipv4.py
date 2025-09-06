@@ -20,9 +20,7 @@ def create_signed_url(db, bucket: str, file_name: str, expires_sec: int = 60 * 6
 
 def display_feed_item(db, caller_id, item, item_type="request"):
     """
-    Display a single request or offer inside an expander with card-like layout.
-    item_type: "request" or "offer" (feed view)
-    caller_id: the profile id of the current user
+    Display a single request or offer in a card-like layout with karma info.
     """
     profile = crud.get_profile(db, item["profile_id"])
     icon = "🙏" if item_type == "request" else "🤗"
@@ -37,15 +35,22 @@ def display_feed_item(db, caller_id, item, item_type="request"):
                 bucket = REQUEST_BUCKET_NAME if item_type == "request" else OFFER_BUCKET_NAME
                 url = create_signed_url(db, bucket, image_file_name)
                 if url:
-                    st.image(url, width=150)
+                    st.image(url, width=150, caption=f"{profile['full_name']}'s image")
+
         with col_info:
-            st.markdown(f"### {item['title']}")
+            # Title + Type Badge
+            st.markdown(f"### {item['title']}  <span style='font-size:0.9em; color:#888;'>{icon}</span>", unsafe_allow_html=True)
+            
+            # Profile + Karma Badge
             st.markdown(
-                f"<span style='color:gray; font-size:0.9em;'>by {profile['full_name']}, {profile['postal_code']}</span>",
+                f"<span style='color:#555; font-size:0.9em;'>👤 {profile['full_name']} | "
+                f"📍 {profile['postal_code']} | 🌟 Karma: {profile.get('karma', 0)}</span>",
                 unsafe_allow_html=True
             )
+
+            # Description
             if item.get("description"):
-                st.caption(item["description"])
+                st.markdown(f"**Description:** {item['description']}")
 
         st.markdown("---")
 
@@ -90,9 +95,7 @@ def display_feed_item(db, caller_id, item, item_type="request"):
                         st.error("Please provide both contact mode and contact info.")
                     else:
                         try:
-                            # Correct initiator_type logic
                             initiator_type = "offer" if item_type == "request" else "request"
-
                             match_req = crud.create_match_request(
                                 db,
                                 caller_id=caller_id,
@@ -110,7 +113,6 @@ def display_feed_item(db, caller_id, item, item_type="request"):
                             st.error(f"❌ {str(e)}")
 
 
-
 def main():
     st.title("📰 Feeds")
 
@@ -123,7 +125,7 @@ def main():
         st.info(f"🌟 Your Karma: **{profile['karma']}**")
 
     # Tabs for separation
-    tabs = st.tabs(["📌 Requests", "🎁 Offers"])
+    tabs = st.tabs(["🙏 Requests", "🤗 Offers"])
 
     # -------------------------
     # Requests Tab
