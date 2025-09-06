@@ -16,25 +16,53 @@ def main():
     # -------------------------
     # Authentication
     # -------------------------
-    db = get_db()  # Supabase client
+    db = get_db()
     user = auth.ensure_authenticated(db)
     profile_id = user.id
 
-    # Karma header
     profile = crud.get_profile(db, profile_id)
     if profile:
         st.info(f"🌟 Your Karma: **{profile['karma']}**")
 
     # -------------------------
-    # Create a new request
+    # Initialize session state for category/subcategory
     # -------------------------
+    if "category" not in st.session_state:
+        st.session_state.category = list(helpers.CATEGORIES.keys())[0]
+    if "subcategory" not in st.session_state:
+        st.session_state.subcategory = helpers.CATEGORIES[st.session_state.category][0]
+
     st.subheader("Create a new request")
+
+    # -------------------------
+    # Category/Subcategory container (outside form but looks like one block)
+    # -------------------------
+    with st.container():
+        col1, col2 = st.columns(2)
+        with col1:
+            st.selectbox(
+                "Category",
+                list(helpers.CATEGORIES.keys()),
+                key="category",
+                on_change=lambda: st.session_state.update({
+                    "subcategory": helpers.CATEGORIES[st.session_state.category][0]
+                })
+            )
+        with col2:
+            st.selectbox(
+                "Subcategory",
+                helpers.CATEGORIES[st.session_state.category],
+                key="subcategory"
+            )
+
+    # -------------------------
+    # Form for creating a new request
+    # -------------------------
     with st.form("request_form"):
         title = st.text_input("Title")
         description = st.text_area("Description")
-        category = st.selectbox("Category", helpers.CATEGORIES)
         image_file = st.file_uploader(
-            "Upload an image (optional, <2MB)", 
+            "Upload an image (optional, <2MB)",
             type=["png", "jpg", "jpeg", "heic", "heif"]
         )
         submitted = st.form_submit_button("Add Request")
@@ -44,18 +72,16 @@ def main():
                 st.error("Title is required.")
                 st.stop()
 
-            image_file_name = None  # store file name in DB, not signed URL
+            image_file_name = None
             if image_file:
                 size_mb = len(image_file.getvalue()) / (1024 * 1024)
                 if size_mb > MAX_IMAGE_SIZE_MB:
                     st.error("Image exceeds 2MB size limit.")
                     st.stop()
 
-                # Generate unique file name
                 ext = image_file.name.split(".")[-1].lower()
                 image_file_name = f"{profile_id}_{uuid.uuid4().hex}.{ext}"
 
-                # Upload file
                 try:
                     res = db.storage.from_(REQUEST_BUCKET_NAME).upload(
                         image_file_name, image_file.getvalue()
@@ -72,14 +98,15 @@ def main():
                 profile_id=profile_id,
                 title=title,
                 description=description,
-                category=category,
+                category=st.session_state.category,
+                subcategory=st.session_state.subcategory,
                 image_file_name=image_file_name
             )
             st.success(f"Request '{title}' created successfully!")
             helpers.rerun()
 
     # -------------------------
-    # List user's requests with Deactivate/Reactivate buttons
+    # List user's requests
     # -------------------------
     st.subheader("My Requests")
     requests = crud.get_all_requests(db, exclude_profile_id=None, include_inactive=True)
@@ -87,7 +114,7 @@ def main():
 
     if user_requests:
         for r in user_requests:
-            st.write(f"**{r['title']}** - {r.get('category', '—')}")
+            st.write(f"**{r['title']}** - {r.get('category', '—')} : {r.get('subcategory', '—')}")
             st.write(r.get("description", ""))
             if r.get("image_file_name"):
                 signed_url_resp = db.storage.from_(REQUEST_BUCKET_NAME).create_signed_url(
@@ -101,27 +128,35 @@ def main():
             if r.get("is_active", True):
                 deactivate_key = f"deactivate_request_{r['id']}"
                 if st.button("Deactivate", key=deactivate_key):
-                    crud.toggle_request_active(db, r['id'], False)
-                    st.success(f"Request '{r['title']}' has been deactivated.")
-                    helpers.rerun()
+                    try:
+                        crud.toggle_request_active(db, r['id'], False)
+                        st.success(f"Request '{r['title']}' has been deactivated.")
+                        helpers.rerun()
+                    except Exception as e:
+                        st.error(f"Failed to deactivate request: {e}")
             else:
                 reactivate_key = f"reactivate_request_{r['id']}"
                 if st.button("Reactivate", key=reactivate_key):
-                    crud.toggle_request_active(db, r['id'], True)
-                    st.success(f"Request '{r['title']}' has been reactivated.")
-                    helpers.rerun()
+                    try:
+                        crud.toggle_request_active(db, r['id'], True)
+                        st.success(f"Request '{r['title']}' has been reactivated.")
+                        helpers.rerun()
+                    except Exception as e:
+                        st.error(f"Failed to reactivate request: {e}")
 
             # Delete button
             delete_key = f"delete_request_{r['id']}"
             if st.button("Delete", key=delete_key):
-                crud.delete_request(db, r['id'])
-                st.success(f"Request '{r['title']}' has been deleted.")
-                helpers.rerun()
+                try:
+                    crud.delete_request(db, r['id'])
+                    st.success(f"Request '{r['title']}' has been deleted.")
+                    helpers.rerun()
+                except Exception as e:
+                        st.error(f"Failed to delete request: {e}")
 
             st.write("---")
     else:
         st.info("You have no requests yet.")
-
 
 
 if __name__ == "__main__":

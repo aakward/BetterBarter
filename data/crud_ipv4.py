@@ -71,12 +71,13 @@ def delete_profile(supabase_client: SupabaseClient, profile_id: str):
 # -----------------------------
 # OFFER CRUD
 # -----------------------------
-def create_offer(supabase_client: SupabaseClient, profile_id: str, title: str, description: str = None, category: str = None,  image_file_name: str = None):
+def create_offer(supabase_client: SupabaseClient, profile_id: str, title: str, description: str = None, category: str = None, subcategory: str = None, image_file_name: str = None):
     offer_data = {
         "profile_id": profile_id,
         "title": title,
         "description": description,
         "category": category,
+        "subcategory": subcategory,
         "is_active": True,
     }
     if image_file_name:
@@ -140,12 +141,13 @@ def mark_offer_matched(supabase_client: SupabaseClient, offer_id: int):
 # -----------------------------
 # REQUEST CRUD
 # -----------------------------
-def create_request(supabase_client: SupabaseClient, profile_id: str, title: str, description: str = None, category: str = None, image_file_name: str = None):
+def create_request(supabase_client: SupabaseClient, profile_id: str, title: str, description: str = None, category: str = None, subcategory: str = None, image_file_name: str = None):
     request_data = {
         "profile_id": profile_id,
         "title": title,
         "description": description,
         "category": category,
+        "subcategory": subcategory,
         "is_active": True,
     }
     if image_file_name:

@@ -16,23 +16,50 @@ def main():
     # -------------------------
     # Authentication
     # -------------------------
-    db = get_db()  # Supabase client
+    db = get_db()
     user = auth.ensure_authenticated(db)
     profile_id = user.id
 
-    # Karma header
     profile = crud.get_profile(db, profile_id)
     if profile:
         st.info(f"🌟 Your Karma: **{profile['karma']}**")
 
     # -------------------------
-    # Create a new offer
+    # Initialize session state for category/subcategory
     # -------------------------
-    st.subheader("Create a new offer")
+    if "category" not in st.session_state:
+        st.session_state.category = list(helpers.CATEGORIES.keys())[0]
+    if "subcategory" not in st.session_state:
+        st.session_state.subcategory = helpers.CATEGORIES[st.session_state.category][0]
+
+
+    # -------------------------
+    # Category/Subcategory container (outside form but looks like one block)
+    # -------------------------
+    with st.container():
+        col1, col2 = st.columns(2)
+        with col1:
+            st.selectbox(
+                "Category",
+                list(helpers.CATEGORIES.keys()),
+                key="category",
+                on_change=lambda: st.session_state.update({
+                    "subcategory": helpers.CATEGORIES[st.session_state.category][0]
+                })
+            )
+        with col2:
+            st.selectbox(
+                "Subcategory",
+                helpers.CATEGORIES[st.session_state.category],
+                key="subcategory"
+            )
+
+    # -------------------------
+    # Form for creating a new offer
+    # -------------------------
     with st.form("offer_form"):
         title = st.text_input("Title")
         description = st.text_area("Description")
-        category = st.selectbox("Category", helpers.CATEGORIES)
         image_file = st.file_uploader(
             "Upload an image (optional, <2MB)",
             type=["png", "jpg", "jpeg", "heic", "heif"]
@@ -70,14 +97,15 @@ def main():
                 profile_id=profile_id,
                 title=title,
                 description=description,
-                category=category,
+                category=st.session_state.category,
+                subcategory=st.session_state.subcategory,
                 image_file_name=image_file_name
             )
             st.success(f"Offer '{title}' created successfully!")
             helpers.rerun()
 
     # -------------------------
-    # List user's offers with Deactivate/Reactivate buttons
+    # List user's offers
     # -------------------------
     st.subheader("My Offers")
     offers = crud.get_all_offers(db, exclude_profile_id=None, include_inactive=True)
@@ -85,7 +113,7 @@ def main():
 
     if user_offers:
         for o in user_offers:
-            st.write(f"**{o['title']}** - {o.get('category', '—')}")
+            st.write(f"**{o['title']}** - {o.get('category', '—')} : {o.get('subcategory', '—')}")
             st.write(o.get("description", ""))
             if o.get("image_file_name"):
                 signed_url_resp = db.storage.from_(OFFER_BUCKET_NAME).create_signed_url(

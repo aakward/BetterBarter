@@ -44,46 +44,67 @@ def send_match_email(to_email: str, from_name: str, offer_title: str, request_ti
         server.login("your-email@domain.com", "your-password")
         server.send_message(msg)
     
-CATEGORIES = [
-    "Antiques",
-    "Art",
-    "Audio",
-    "TV",
-    "Cars/Auto",
-    "Auto Parts",
-    "Car Miscellaneous",
-    "Books",
-    "Caravans and Camping",
-    "CDs/DVDs",
-    "Computers/Hardware",
-    "Software",
-    "Contacts and Messages",
-    "Services/Professionals",
-    "Animals and Accessories",
-    "DIY/Renovation",
-    "Bicycles/Mopeds",
-    "Hobby and Leisure",
-    "Furnitures",
-    "Household Items",
-    "Houses and Rooms",
-    "Children/Babies",
-    "Clothing - Women",
-    "Clothing - Men",
-    "Music and Instruments",
-    "Wellbeing/Medicines",
-    "Stamps/Coins & Collectibles",
-    "Jewellery/Bags and Accessories",
-    "Game Consoles and Games",
-    "Sports/Fitness",
-    "Tickets",
-    "Garden and Terrace",
-    "Vacancies",
-    "Holiday",
-    "Water Sports and Boats",
-    "Electronics",
-    "Business Goods",
-    "Miscellaneous"
-]
+# helpers.py
+
+CATEGORIES = {
+    "Electronics": [
+        "Phones & Tablets",
+        "Laptops & Computers",
+        "Audio/TV",
+        "Cameras & Photography",
+        "Other Electronics"
+    ],
+    "Clothing & Accessories": [
+        "Men",
+        "Women",
+        "Kids",
+        "Jewellery & Watches",
+        "Bags & Shoes",
+        "Other Items"
+    ],
+    "Books & Media": [
+        "Books",
+        "Music & Instruments",
+        "Movies & Games",
+        "Collectibles"
+    ],
+    "Home & Living": [
+        "Furniture",
+        "Kitchen & Appliances",
+        "Decor",
+        "Garden & Outdoor",
+        "Other Home Items"
+    ],
+    "Sports & Outdoors": [
+        "Fitness Equipment",
+        "Cycling",
+        "Camping & Hiking",
+        "Water Sports",
+        "Other Sports"
+    ],
+    "Toys & Games": [
+        "Board Games",
+        "Puzzles",
+        "Toys",
+        "Game Consoles"
+    ],
+    "Beauty & Personal Care": [
+        "Cosmetics",
+        "Health & Wellness",
+        "Personal Care"
+    ],
+    "Food & Beverages": [
+        "Pantry",
+        "Drinks",
+        "Other"
+    ],
+    "Other": [
+        "Services",
+        "Pets",
+        "Miscellaneous"
+    ]
+}
+
 
 
 def parse_datetime(dt):
