@@ -25,7 +25,7 @@ def display_feed_item(db, caller_id, item, item_type="request"):
     caller_id: the profile id of the current user
     """
     profile = crud.get_profile(db, item["profile_id"])
-    icon = "📌" if item_type == "request" else "🎁"
+    icon = "🙏" if item_type == "request" else "🤗"
     expander_label = f"{icon} {item['title']}"
 
     with st.expander(expander_label, expanded=False):
