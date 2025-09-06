@@ -53,10 +53,14 @@ def format_contact_info(profile, contact=None):
 
 
 def send_match_request_email(receiver, sender):
+    """
+    Notify receiver that someone sent them a match request.
+    No contact details are shared at this stage.
+    """
     subject = "New match request waiting for your response on BetterBarter!"
     html_content = f"""
-    Hi {receiver.full_name},<br><br>
-    {sender.full_name} has sent you a match request on BetterBarter at betterbarter.streamlit.app <br>
+    Hi {receiver.name},<br><br>
+    {sender.name} has sent you a match request on BetterBarter at betterbarter.streamlit.app <br>
     Log in to your account to review and respond.<br><br>
     Happy helping! :)
     """
@@ -66,25 +70,25 @@ def send_match_request_email(receiver, sender):
 def send_match_accepted_email(user1, user2, user1_contact=None, user2_contact=None):
     """
     Send email to both users when a match is accepted.
-    user1_contact and user2_contact are dicts with keys 'mode' and 'value'.
+    Contact details are exchanged at this stage.
     """
     subject = "Your match request was accepted on BetterBarter!"
 
     html_content_user1 = f"""
-    Hi {user1.full_name},<br><br>
-    Good news! Your match with {user2.full_name} has been accepted.<br>
-    Contact Info to reach {user2.full_name}:<br>
+    Hi {user1.name},<br><br>
+    Good news! Your match with {user2.name} has been accepted.<br>
+    Contact Info to reach {user2.name}:<br>
     {format_contact_info(user2, user2_contact)}<br><br>
-    Please feel free to contact {user2.full_name}.<br><br>
+    Please feel free to contact {user2.name}.<br><br>
     Happy helping!
     """
 
     html_content_user2 = f"""
-    Hi {user2.full_name},<br><br>
-    Good news! Your match with {user1.full_name} has been accepted.<br>
-    Contact Info to reach {user1.full_name}:<br>
+    Hi {user2.name},<br><br>
+    Good news! Your match with {user1.name} has been accepted.<br>
+    Contact Info to reach {user1.name}:<br>
     {format_contact_info(user1, user1_contact)}<br><br>
-    Please feel free to contact {user1.full_name}.<br><br>
+    Please feel free to contact {user1.name}.<br><br>
     Happy helping!
     """
 

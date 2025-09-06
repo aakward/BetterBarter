@@ -268,37 +268,36 @@ def create_match_request(
     if not contact_mode or not contact_value:
         raise Exception("Contact mode and contact details must be provided.")
 
-    # --- Determine roles based on initiator ---
     requester_id = offerer_id = None
 
     if initiator_type == "request":
-        if not request_id:
-            raise Exception("request_id must be provided when initiator_type='request'")
+        # Caller is the requester, must provide target offer
+        if not offer_id:
+            raise Exception("offer_id must be provided when initiator_type='request'")
         requester_id = caller_id
 
-        if offer_id:
-            resp = supabase_client.table("offers").select("profile_id, is_active").eq("id", offer_id).execute()
-            if not resp.data:
-                raise Exception("Offer not found")
-            if not resp.data[0].get("is_active", True):
-                raise Exception("Cannot send a match request to a deactivated offer")
-            offerer_id = resp.data[0]["profile_id"]
+        resp = supabase_client.table("offers").select("profile_id, is_active").eq("id", offer_id).execute()
+        if not resp.data:
+            raise Exception("Offer not found")
+        if not resp.data[0].get("is_active", True):
+            raise Exception("Cannot send a match request to a deactivated offer")
+        offerer_id = resp.data[0]["profile_id"]
 
         if offerer_id == caller_id:
             raise Exception("Cannot send a match request to your own offer")
 
     elif initiator_type == "offer":
-        if not offer_id:
-            raise Exception("offer_id must be provided when initiator_type='offer'")
+        # Caller is the offerer, must provide target request
+        if not request_id:
+            raise Exception("request_id must be provided when initiator_type='offer'")
         offerer_id = caller_id
 
-        if request_id:
-            resp = supabase_client.table("requests").select("profile_id, is_active").eq("id", request_id).execute()
-            if not resp.data:
-                raise Exception("Request not found")
-            if not resp.data[0].get("is_active", True):
-                raise Exception("Cannot send a match request to a deactivated request")
-            requester_id = resp.data[0]["profile_id"]
+        resp = supabase_client.table("requests").select("profile_id, is_active").eq("id", request_id).execute()
+        if not resp.data:
+            raise Exception("Request not found")
+        if not resp.data[0].get("is_active", True):
+            raise Exception("Cannot send a match request to a deactivated request")
+        requester_id = resp.data[0]["profile_id"]
 
         if requester_id == caller_id:
             raise Exception("Cannot send a match request to your own request")
@@ -333,13 +332,15 @@ def create_match_request(
     # --- Send email notification ---
     if resp.data:
         caller_profile = get_profile(supabase_client, caller_id)
-        other_profile = get_profile(supabase_client, offerer_id if initiator_type == "request" else requester_id)
+        other_profile = get_profile(
+            supabase_client, 
+            offerer_id if initiator_type == "request" else requester_id
+        )
 
         if caller_profile and other_profile:
             send_match_request_email(
                 receiver=UserEmailObj(other_profile),
                 sender=UserEmailObj(caller_profile),
-                receiver_contact={"mode": contact_mode, "value": contact_value}
             )
 
     return resp.data[0] if resp.data else None
