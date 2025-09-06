@@ -6,7 +6,7 @@ from data.models import MatchStatus
 from services.email_service import send_match_request_email, send_match_accepted_email
 import streamlit as st
 
-MAX_MATCH_REQUESTS_PER_DAY = 3  # adjustable
+MAX_MATCH_REQUESTS_PER_DAY = 30  # adjustable
 REQUEST_BUCKET_NAME = "request-images"
 OFFER_BUCKET_NAME = "offer-images"
 
@@ -285,6 +285,9 @@ def create_match_request(
 
         if offerer_id == caller_id:
             raise Exception("Cannot send a match request to your own offer")
+        
+        initiator_id = caller_id  
+
 
     elif initiator_type == "offer":
         # Caller is the offerer, must provide target request
@@ -302,6 +305,8 @@ def create_match_request(
         if requester_id == caller_id:
             raise Exception("Cannot send a match request to your own request")
 
+        initiator_id = caller_id  
+
     else:
         raise Exception("Invalid initiator_type. Must be 'request' or 'offer'.")
 
@@ -313,6 +318,7 @@ def create_match_request(
     match_data = {
         "requester_id": requester_id,
         "offerer_id": offerer_id,
+        "initiator_id": initiator_id,  
         "request_id": request_id,
         "offer_id": offer_id,
         "message": message,
@@ -358,73 +364,43 @@ def get_match_requests_for_offer(supabase_client: SupabaseClient, offer_id: int,
     return resp.data
 
 
-def get_match_requests_by_requester(supabase_client: SupabaseClient, requester_id: str, status: str = None):
-    """
-    Returns sent match requests, excluding any linked offer/request that is deactivated.
-    """
+def get_sent_match_requests(db, profile_id: str, status: str = None):
     query = (
-        supabase_client
-        .table("match_requests")
-        .select(
-            """
-            *,
-            offers:offer_id (
-                id, title, description, image_file_name, is_active,
-                profiles:profile_id (id, full_name, postal_code)
-            ),
-            requests:request_id (
-                id, title, description, image_file_name, is_active,
-                profiles:profile_id (id, full_name, postal_code)
-            )
-            """
-        )
-        .eq("requester_id", requester_id)
+        db.table("match_requests")
+        .select("*, offers:offer_id(*, profiles:profile_id(*)), requests:request_id(*, profiles:profile_id(*))")
+        .eq("initiator_id", profile_id)  # only requests created by this user
     )
     if status:
         query = query.eq("status", status)
 
     resp = query.execute()
-    # Filter out any deactivated offers or requests
     filtered = [
         mr for mr in resp.data
-        if mr.get("offers") and mr["offers"].get("is_active", True)
-        and mr.get("requests") and mr["requests"].get("is_active", True)
+        if (
+            (mr.get("offers") and mr["offers"].get("is_active", True)) or
+            (mr.get("requests") and mr["requests"].get("is_active", True))
+        )
     ]
     return filtered
 
 
-
-def get_match_requests_for_offerer(db, offerer_id: str, status: str = None):
-    """
-    Returns incoming match requests, excluding any linked offer/request that is deactivated.
-    """
+def get_incoming_match_requests(db, profile_id: str, status: str = None):
     query = (
         db.table("match_requests")
-        .select(
-            """
-            *,
-            offers:offer_id (
-                id, title, description, image_file_name, is_active,
-                profiles:profile_id (id, full_name, postal_code)
-            ),
-            requests:request_id (
-                id, title, description, image_file_name, is_active,
-                profiles:profile_id (id, full_name, postal_code)
-            )
-            """
-        )
-        .eq("offerer_id", offerer_id)
-        .neq("requester_id", offerer_id)
+        .select("*, offers:offer_id(*, profiles:profile_id(*)), requests:request_id(*, profiles:profile_id(*))")
+        .neq("initiator_id", profile_id)  # only requests initiated by someone else
+        .or_(f"offerer_id.eq.{profile_id},requester_id.eq.{profile_id}")  # user is on the other side
     )
     if status:
         query = query.eq("status", status)
 
     resp = query.execute()
-    # Filter out any deactivated offers or requests
     filtered = [
         mr for mr in resp.data
-        if mr.get("offers") and mr["offers"].get("is_active", True)
-        and mr.get("requests") and mr["requests"].get("is_active", True)
+        if (
+            (mr.get("offers") and mr["offers"].get("is_active", True)) or
+            (mr.get("requests") and mr["requests"].get("is_active", True))
+        )
     ]
     return filtered
 

@@ -74,8 +74,10 @@ def main():
     # Tab 2: Sent Requests
     # -------------------------
     with tabs[1]:
-        sent_requests = crud.get_match_requests_by_requester(db, profile_id)
-        ui_sent_requests = [build_ui_match_from_match_request(mr,db) for mr in sent_requests]
+        sent_requests = crud.get_sent_match_requests(db, profile_id, status="pending")
+        st.write(sent_requests)
+        ui_sent_requests = [build_ui_match_from_match_request(mr, db) for mr in sent_requests]
+
         st.subheader(f"Sent Requests ({len(ui_sent_requests)})")
         if ui_sent_requests:
             for idx, match in enumerate(ui_sent_requests):
@@ -87,8 +89,11 @@ def main():
     # Tab 3: Incoming Requests
     # -------------------------
     with tabs[2]:
-        incoming_requests = crud.get_match_requests_for_offerer(db, profile_id, status="pending")
+        incoming_requests = crud.get_incoming_match_requests(db, profile_id, status="pending")
+        st.write(incoming_requests)
+
         ui_incoming_requests = [build_ui_match_from_match_request(mr, db) for mr in incoming_requests]
+
         st.subheader(f"Incoming Requests ({len(ui_incoming_requests)})")
         if ui_incoming_requests:
             for idx, match in enumerate(ui_incoming_requests):
@@ -122,8 +127,6 @@ def main():
                 display_match(db, ui_match, section="matched", profile_id=profile_id, idx=idx)
         else:
             st.info("No matched requests yet!")
-
-
 
 
 # -------------------------

@@ -112,11 +112,9 @@ class MatchRequest(Base):
     request_id = Column(Integer, ForeignKey("requests.id"), nullable=True)
     offer_id = Column(Integer, ForeignKey("offers.id"), nullable=True)
 
-    # Who initiated the match/interest
-    requester_id = Column(String, ForeignKey("profiles.id"), nullable=False)
-
-    # Who is on the other side (if known)
+    requester_id = Column(String, ForeignKey("profiles.id"), nullable=True)
     offerer_id = Column(String, ForeignKey("profiles.id"), nullable=True)
+    initiator_id = Column(String, ForeignKey("profiles.id"), nullable=True)  
 
     # Optional personalization
     message = Column(Text, nullable=True)
@@ -141,4 +139,4 @@ class MatchRequest(Base):
     offer = relationship("Offer", back_populates="match_requests")
     requester = relationship("Profile", foreign_keys=[requester_id])
     offerer = relationship("Profile", foreign_keys=[offerer_id])
-
+    initiator = relationship("Profile", foreign_keys=[initiator_id])  # <--- new relationship
