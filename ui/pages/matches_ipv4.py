@@ -75,7 +75,6 @@ def main():
     # -------------------------
     with tabs[1]:
         sent_requests = crud.get_sent_match_requests(db, profile_id, status="pending")
-        st.write(sent_requests)
         ui_sent_requests = [build_ui_match_from_match_request(mr, db) for mr in sent_requests]
 
         st.subheader(f"Sent Requests ({len(ui_sent_requests)})")
@@ -90,8 +89,6 @@ def main():
     # -------------------------
     with tabs[2]:
         incoming_requests = crud.get_incoming_match_requests(db, profile_id, status="pending")
-        st.write(incoming_requests)
-
         ui_incoming_requests = [build_ui_match_from_match_request(mr, db) for mr in incoming_requests]
 
         st.subheader(f"Incoming Requests ({len(ui_incoming_requests)})")
@@ -191,7 +188,7 @@ def display_match(db: Client, match: UIMatch, section: str, profile_id: str, idx
                 custom_message = st.text_area("Custom message (optional)", key=f"msg-potential-{idx}")
                 contact_mode = st.selectbox(
                     "Preferred contact method",
-                    options=["Email", "Phone", "WhatsApp", "Telegram"],
+                    options=["WhatsApp", "Phone", "Email"],
                     key=f"contact-mode-{idx}"
                 )
                 contact_value = st.text_input(
@@ -253,10 +250,10 @@ def display_match(db: Client, match: UIMatch, section: str, profile_id: str, idx
 
                     contact_mode = st.selectbox(
                         "Preferred contact method for this match",
-                        options=["Email", "Phone", "WhatsApp"],
+                        options=["WhatsApp", "Phone", "Email"],
                         key=contact_mode_key,
-                        index=["Email", "Phone", "WhatsApp"].index(existing_contact_mode)
-                            if existing_contact_mode in ["Email", "Phone", "WhatsApp"] else 0
+                        index=["WhatsApp", "Phone", "Email"].index(existing_contact_mode)
+                            if existing_contact_mode in ["WhatsApp", "Phone", "Email"] else 0
                     )
                     contact_value = st.text_input(
                         "Provide contact details to share",

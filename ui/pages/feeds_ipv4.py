@@ -76,7 +76,7 @@ def display_feed_item(db, caller_id, item, item_type="request"):
                 )
                 contact_mode = st.selectbox(
                     "Preferred contact mode",
-                    options=["Email", "Phone", "WhatsApp"],
+                    options=["WhatsApp", "Phone", "Email"],
                     key=contact_mode_key
                 )
                 contact_value = st.text_input(
