@@ -15,17 +15,58 @@ def build_ui_match_from_match(match: dict):
     offer = match.get("offer")
     request = match.get("request")
 
+    # --- Offer profile ---
+    offer_profile = None
+    offer_profiles = offer.get("profiles") if offer else None
+    if isinstance(offer_profiles, list):
+        offer_profile = offer_profiles[0] if offer_profiles else None
+    elif isinstance(offer_profiles, dict):
+        offer_profile = offer_profiles
+
+    # --- Request profile ---
+    request_profile = None
+    request_profiles = request.get("profiles") if request else None
+    if isinstance(request_profiles, list):
+        request_profile = request_profiles[0] if request_profiles else None
+    elif isinstance(request_profiles, dict):
+        request_profile = request_profiles
+
     return UIMatch(
         id=match["id"],
         offer_id=match.get("offer_id"),
         request_id=match.get("request_id"),
-        offer_description=offer["description"] if offer else None,
-        request_description=request["description"] if request else None,
+
+        # descriptions & images
+        offer_description=offer.get("description") if offer else None,
+        request_description=request.get("description") if request else None,
         offer_image=offer.get("image_file_name") if offer else None,
         request_image=request.get("image_file_name") if request else None,
-        status=_normalize_status(match.get("status")),  # string from Supabase
+
+        # enriched fields
+        offer_title=offer.get("title") if offer else None,
+        request_title=request.get("title") if request else None,
+        offer_user_name=offer_profile.get("full_name") if offer_profile else None,
+        request_user_name=request_profile.get("full_name") if request_profile else None,
+        offer_postal=offer_profile.get("postal_code") if offer_profile else None,
+        request_postal=request_profile.get("postal_code") if request_profile else None,
+        offer_user_karma=offer_profile.get("karma") if offer_profile else 0,
+        request_user_karma=request_profile.get("karma") if request_profile else 0,
+        offer_category=offer.get("category") if offer else None,
+        offer_subcategory=offer.get("subcategory") if offer else None,
+        request_category=request.get("category") if request else None,
+        request_subcategory=request.get("subcategory") if request else None,
+
+        # status & creation
+        status=_normalize_status(match.get("status")),
         created_at=parse_datetime(match.get("created_at")),
+
+        # contact info
+        offerer_contact_mode=match.get("offerer_contact_mode"),
+        offerer_contact_value=match.get("offerer_contact_value"),
+        requester_contact_mode=match.get("requester_contact_mode"),
+        requester_contact_value=match.get("requester_contact_value"),
     )
+
 
 
 def build_ui_match_from_match_request(mr: dict, db=None) -> UIMatch:
@@ -75,6 +116,12 @@ def build_ui_match_from_match_request(mr: dict, db=None) -> UIMatch:
         request_user_name=request_profile.get("full_name") if request_profile else None,
         offer_postal=offer_profile.get("postal_code") if offer_profile else None,
         request_postal=request_profile.get("postal_code") if request_profile else None,
+        offer_category=offer.get("category") if offer else None,
+        offer_subcategory=offer.get("subcategory") if offer else None,
+        request_category=request.get("category") if request else None,
+        request_subcategory=request.get("subcategory") if request else None,
+        offer_user_karma=offer_profile.get("karma") if offer_profile else 0,
+        request_user_karma=request_profile.get("karma") if request_profile else 0,
 
         # contact info
         offerer_contact_mode=mr.get("offerer_contact_mode"),
@@ -88,11 +135,23 @@ def build_ui_match_from_match_request(mr: dict, db=None) -> UIMatch:
 
 
 
-def build_ui_match_from_offer_request_pair(offer: dict, request: dict, score = 0) -> UIMatch:
+def build_ui_match_from_offer_request_pair(offer: dict, request: dict, score=0) -> UIMatch:
     """
     Build a UIMatch object from an offer and request dict returned by Supabase.
     Both dicts are enriched with profile data in get_potential_matches.
     """
+    def get_profile(profile_data):
+        if not profile_data:
+            return None
+        if isinstance(profile_data, list):
+            return profile_data[0] if profile_data else None
+        if isinstance(profile_data, dict):
+            return profile_data
+        return None
+
+    offer_profile = get_profile(offer.get("profiles"))
+    request_profile = get_profile(request.get("profiles"))
+
     return UIMatch(
         id=None,  # potential matches don’t exist yet in match_requests
         offer_id=offer.get("id"),
@@ -107,14 +166,20 @@ def build_ui_match_from_offer_request_pair(offer: dict, request: dict, score = 0
         # enriched fields
         offer_title=offer.get("title"),
         request_title=request.get("title"),
-        offer_user_name=offer.get("profiles", {}).get("full_name"),
-        request_user_name=request.get("profiles", {}).get("full_name"),
-        offer_postal=offer.get("profiles", {}).get("postal_code"),
-        request_postal=request.get("profiles", {}).get("postal_code"),
+        offer_user_name=offer_profile.get("full_name") if offer_profile else None,
+        request_user_name=request_profile.get("full_name") if request_profile else None,
+        offer_postal=offer_profile.get("postal_code") if offer_profile else None,
+        request_postal=request_profile.get("postal_code") if request_profile else None,
+        offer_category=offer.get("category"),
+        offer_subcategory=offer.get("subcategory"),
+        request_category=request.get("category"),
+        request_subcategory=request.get("subcategory"),
+        offer_user_karma=offer_profile.get("karma") if offer_profile else 0,
+        request_user_karma=request_profile.get("karma") if request_profile else 0,
 
-        # unused for potential matches
         message=None,
     )
+
 
 
 

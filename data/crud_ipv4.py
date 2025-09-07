@@ -559,13 +559,14 @@ def get_potential_matches(supabase_client, profile_id: str, top_n: int = 10):
     candidates = []
 
     # Fetch active offers and requests
+    # Fetch active offers and requests with profile info including karma
     all_offers = supabase_client.table("offers")\
-        .select("*, profiles(full_name, postal_code)")\
+        .select("*, profiles(id, full_name, postal_code, karma)")\
         .eq("is_active", True)\
         .execute().data or []
 
     all_requests = supabase_client.table("requests")\
-        .select("*, profiles(full_name, postal_code)")\
+        .select("*, profiles(id, full_name, postal_code, karma)")\
         .eq("is_active", True)\
         .execute().data or []
 

@@ -17,6 +17,12 @@ class UIMatch:
     request_user_name: Optional[str] = None
     offer_postal: Optional[str] = None
     request_postal: Optional[str] = None
+    offer_user_karma: Optional[int] = 0
+    request_user_karma: Optional[int] = 0
+    offer_category: Optional[str] = None
+    offer_subcategory: Optional[str] = None
+    request_category: Optional[str] = None
+    request_subcategory: Optional[str] = None
     status: str = "pending"
     created_at: datetime = None
     message: Optional[str] = None

@@ -15,6 +15,7 @@ from supabase import Client
 OFFER_BUCKET_NAME = "offer-images"
 REQUEST_BUCKET_NAME = "request-images"
 
+
 def main():
     st.set_page_config(page_title="Matches", layout="wide")
     st.title("🤝 Matches Dashboard")
@@ -34,10 +35,10 @@ def main():
     # Tabs for sections
     # -------------------------
     tabs = st.tabs([
-        f"💡 Potential Matches",
-        f"📤 Sent Requests",
-        f"📥 Received Requests",
-        f"🎯 Completed Matches"
+        "💡 Potential Matches",
+        "📤 Sent Requests",
+        "📥 Received Requests",
+        "🎯 Completed Matches"
     ])
 
     # -------------------------
@@ -107,12 +108,12 @@ def main():
         all_matches = db.table("match_requests").select("""
             *,
             offers:offer_id (
-                id, title, description, image_file_name,
-                profiles:profile_id (id, full_name, postal_code)
+                id, title, description, image_file_name, category, subcategory,
+                profiles:profile_id (id, full_name, postal_code, karma)
             ),
             requests:request_id (
-                id, title, description, image_file_name,
-                profiles:profile_id (id, full_name, postal_code)
+                id, title, description, image_file_name, category, subcategory,
+                profiles:profile_id (id, full_name, postal_code, karma)
             )
         """).or_(
             f"requester_id.eq.{profile_id},offerer_id.eq.{profile_id}"
@@ -133,48 +134,45 @@ def main():
 # -------------------------
 def display_match(db: Client, match: UIMatch, section: str, profile_id: str, idx: int = 0):
     """
-    Display a single match in Streamlit with section-specific actions.
+    Display a single match with richer info (karma, postal, category, subcategory, image).
     Sections: potential, sent, received, matched
     """
     header_text = f"Match #{match.id}" if match.id else f"Potential Match #{idx+1}"
 
-    # Use expander for collapsible display
     with st.expander(header_text, expanded=(section == "potential")):
-        # Two-column layout: Offer | Request
         col_offer, col_request = st.columns(2)
 
+        # ---- Offer side ----
         with col_offer:
-            st.markdown("### Offer")
-            if match.offer_title:
-                st.write(match.offer_title)
-            if match.offer_description:
-                st.caption(match.offer_description)
+            st.markdown("### 🤗 Offer")
             if match.offer_image:
-                signed_url = db.storage.from_(OFFER_BUCKET_NAME).create_signed_url(
-                    match.offer_image, 60*60*24
-                )
-                st.image(signed_url.get("signedURL"), width=150)
-            if match.offer_user_name or match.offer_postal:
-                st.write(f"Owner: **{match.offer_user_name or '-'}** ({match.offer_postal or '-'})")
+                signed_url = db.storage.from_(OFFER_BUCKET_NAME).create_signed_url(match.offer_image, 60*60*24)
+                st.image(signed_url.get("signedURL"), width=160)
 
+            st.markdown(f"**{match.offer_title or 'No Title'}**")
+            st.caption(match.offer_description or "No Description")
+            st.markdown(f" 👤 {match.offer_user_name or '-'} (Karma: {match.offer_user_karma or 0})")
+            st.markdown(f" 📍 {match.offer_postal or '—'}")
+            st.markdown(f" 📂 {match.offer_category or '—'} → {match.offer_subcategory or '—'}")
+
+        # ---- Request side ----
         with col_request:
-            st.markdown("### Request")
-            if match.request_title:
-                st.write(match.request_title)
-            if match.request_description:
-                st.caption(match.request_description)
+            st.markdown("### 🙏 Request")
             if match.request_image:
-                signed_url = db.storage.from_(REQUEST_BUCKET_NAME).create_signed_url(
-                    match.request_image, 60*60*24
-                )
-                st.image(signed_url.get("signedURL"), width=150)
-            if match.request_user_name or match.request_postal:
-                st.write(f"Owner: **{match.request_user_name or '-'}** ({match.request_postal or '-'})")
+                signed_url = db.storage.from_(REQUEST_BUCKET_NAME).create_signed_url(match.request_image, 60*60*24)
+                st.image(signed_url.get("signedURL"), width=160)
+
+            st.markdown(f"**{match.request_title or 'No Title'}**")
+            st.caption(match.request_description or "No Description")
+            st.markdown(f" 👤 {match.request_user_name or '-'} (Karma: {match.request_user_karma or 0})")
+            st.markdown(f" 📍 {match.request_postal or '—'}")
+            st.markdown(f" 📂 {match.request_category or '—'} → {match.request_subcategory or '—'}")
 
         st.markdown("---")
-        st.write(f"**Status:** {match.status.capitalize()}")
+        st.write(f"**Status:** {match.status.capitalize() if match.status else '—'}")
         if match.created_at:
             st.caption(f"Created at: {match.created_at.strftime('%Y-%m-%d %H:%M')}")
+
         if match.message:
             st.info(f"💬 Message: {match.message}")
 
@@ -202,9 +200,7 @@ def display_match(db: Client, match: UIMatch, section: str, profile_id: str, idx
                     if not contact_value:
                         st.error("Please provide your contact details.")
                     else:
-                        # Determine initiator type: 'request' if user owns the request, 'offer' if user owns the offer
                         initiator_type = "request" if profile_id == match.requester_id else "offer"
-
                         crud.create_match_request(
                             db,
                             caller_id=profile_id,
@@ -218,9 +214,20 @@ def display_match(db: Client, match: UIMatch, section: str, profile_id: str, idx
                         st.success("✅ Match request sent successfully!")
                         st.session_state[toggle_key] = False
 
-
         elif section == "sent":
-            st.write(f"**To:** {match.offer_user_name or '-'} ({match.offer_postal or '-'})")
+            # Determine the other party
+            if profile_id == match.requester_id:
+                # I sent the request, so "To" is the offerer
+                other_name = match.offer_user_name
+                other_postal = match.offer_postal
+            elif profile_id == match.offerer_id:
+                # I sent the request, so "To" is the requester
+                other_name = match.request_user_name
+                other_postal = match.request_postal
+            else:
+                other_name = "-"
+                other_postal = "-"
+            st.write(f"**To:** {other_name or '-'} ({other_postal or '-'})")
             if match.status.lower() == "pending" and st.button("Cancel Match Request", key=f"cancel-{idx}"):
                 crud.cancel_match_request(db, match.id, profile_id)
                 st.success("Match request cancelled!")
@@ -239,11 +246,9 @@ def display_match(db: Client, match: UIMatch, section: str, profile_id: str, idx
 
             with col1:
                 if not st.session_state.get(accept_key, False):
-                    # Show only the Accept button initially
                     if st.button("Accept", key=f"accept-{idx}"):
                         st.session_state[accept_key] = True
                 else:
-                    # Once clicked, show contact inputs
                     contact_mode_key = f"accept-contact-mode-{idx}"
                     contact_value_key = f"accept-contact-value-{idx}"
 
@@ -275,8 +280,7 @@ def display_match(db: Client, match: UIMatch, section: str, profile_id: str, idx
                                 contact_value=contact_value
                             )
                             st.success("Request accepted!")
-                            st.session_state[accept_key] = False  # reset if needed
-
+                            st.session_state[accept_key] = False
 
             with col2:
                 if st.button("Decline", key=f"decline-{idx}"):
@@ -285,8 +289,6 @@ def display_match(db: Client, match: UIMatch, section: str, profile_id: str, idx
 
         elif section == "matched":
             st.success("✅ Matched / Completed")
-
-            # Contact info (decide other party based on profile_id)
             if profile_id == match.requester_id:
                 other_name = match.offer_user_name
                 other_contact_mode = match.offerer_contact_mode
@@ -301,8 +303,6 @@ def display_match(db: Client, match: UIMatch, section: str, profile_id: str, idx
                 other_contact_value = "-"
 
             st.markdown(f"📞 **Contact {other_name or '-'}**: {other_contact_value or '-'} ({other_contact_mode or '-'})")
-
-
 
 
 if __name__ == "__main__":
