@@ -36,7 +36,7 @@ def main():
     tabs = st.tabs([
         f"💡 Potential Matches",
         f"📤 Sent Requests",
-        f"📥 Incoming Requests",
+        f"📥 Received Requests",
         f"🎯 Completed Matches"
     ])
 
@@ -93,7 +93,7 @@ def main():
         incoming_requests = crud.get_incoming_match_requests(db, profile_id, status="pending")
         ui_incoming_requests = [build_ui_match_from_match_request(mr, db) for mr in incoming_requests]
 
-        st.subheader(f"Incoming Requests ({len(ui_incoming_requests)})")
+        st.subheader(f"Received Requests ({len(ui_incoming_requests)})")
         if ui_incoming_requests:
             for idx, match in enumerate(ui_incoming_requests):
                 display_match(db, match, section="received", profile_id=profile_id, idx=idx)
