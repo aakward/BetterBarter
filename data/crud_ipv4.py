@@ -1,9 +1,9 @@
 from typing import Literal
 from supabase import Client as SupabaseClient
-from utils import auth, helpers
 import datetime
 from data.models import MatchStatus
 from services.email_service import send_match_request_email, send_match_accepted_email
+from services import matching_ipv4
 import streamlit as st
 
 MAX_MATCH_REQUESTS_PER_DAY = 3  # adjustable
@@ -551,7 +551,7 @@ def match_request_exists(supabase_client: SupabaseClient , requester_id, request
 
 
 
-def get_potential_matches(supabase_client, profile_id: str):
+def get_potential_matches(supabase_client, profile_id: str, top_n: int = 10):
     """
     Return potential matches for the logged-in profile.
     Excludes matches where requester and offerer are the same profile.
@@ -591,21 +591,32 @@ def get_potential_matches(supabase_client, profile_id: str):
     # 1. My requests -> Others' offers
     for req in my_requests:
         for offer in others_offers:
-            # Skip self-match (shouldn’t happen, but just in case)
             if req["profile_id"] == offer["profile_id"]:
                 continue
-            if (offer["id"], req["id"]) not in existing_pairs:
-                candidates.append((offer, req))
+            if req["category"] != offer["category"]:
+                continue  # discard mismatched categories
+            if (offer["id"], req["id"]) in existing_pairs:
+                continue
+            match_score = matching_ipv4.score_match(offer, req)
+            if match_score > 0:
+                candidates.append((offer, req, match_score))
 
     # 2. My offers -> Others' requests
     for offer in my_offers:
         for req in others_requests:
             if offer["profile_id"] == req["profile_id"]:
                 continue
-            if (offer["id"], req["id"]) not in existing_pairs:
-                candidates.append((offer, req))
+            if offer["category"] != req["category"]:
+                continue
+            if (offer["id"], req["id"]) in existing_pairs:
+                continue
+            match_score = matching_ipv4.score_match(offer, req)
+            if match_score > 0:
+                candidates.append((offer, req, match_score))
 
-    return candidates
+    # Sort candidates by match_score descending and return top N
+    candidates.sort(key=lambda x: x[2], reverse=True)
+    return candidates[:top_n]
 
 
 

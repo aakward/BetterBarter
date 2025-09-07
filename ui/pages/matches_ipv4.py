@@ -45,14 +45,16 @@ def main():
     # -------------------------
     with tabs[0]:
         potential_matches = crud.get_potential_matches(db, profile_id)
+
         matches_for_my_requests = [
-            build_ui_match_from_offer_request_pair(o, r)
-            for (o, r) in potential_matches
+            build_ui_match_from_offer_request_pair(o, r, score=score)
+            for (o, r, score) in potential_matches
             if r["profile_id"] == profile_id
         ]
+
         matches_for_my_offers = [
-            build_ui_match_from_offer_request_pair(o, r)
-            for (o, r) in potential_matches
+            build_ui_match_from_offer_request_pair(o, r, score=score)
+            for (o, r, score) in potential_matches
             if o["profile_id"] == profile_id
         ]
 

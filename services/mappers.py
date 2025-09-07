@@ -88,7 +88,7 @@ def build_ui_match_from_match_request(mr: dict, db=None) -> UIMatch:
 
 
 
-def build_ui_match_from_offer_request_pair(offer: dict, request: dict) -> UIMatch:
+def build_ui_match_from_offer_request_pair(offer: dict, request: dict, score = 0) -> UIMatch:
     """
     Build a UIMatch object from an offer and request dict returned by Supabase.
     Both dicts are enriched with profile data in get_potential_matches.

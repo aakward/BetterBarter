@@ -2,6 +2,7 @@ import streamlit as st
 from data import crud_ipv4 as crud
 from data.db_ipv4 import get_db
 from utils import auth
+from utils import helpers
 
 REQUEST_BUCKET_NAME = "request-images"
 OFFER_BUCKET_NAME = "offer-images"
@@ -43,8 +44,10 @@ def display_feed_item(db, caller_id, item, item_type="request"):
             
             # Profile + Karma Badge
             st.markdown(
-                f"<span style='color:#555; font-size:0.9em;'>👤 {profile['full_name']} | "
-                f"📍 {profile['postal_code']} | 🌟 Karma: {profile.get('karma', 0)}</span>",
+                f"<span style='color:#555; font-size:0.9em;'>"
+                f"👤 {profile['full_name']} | 📍 {profile['postal_code']} | 🌟 Karma: {profile.get('karma', 0)}<br>"
+                f"📂 Category: {item.get('category', '—')} | 🗂 Subcategory: {item.get('subcategory', '—')}"
+                f"</span>",
                 unsafe_allow_html=True
             )
 
@@ -124,6 +127,26 @@ def main():
     if profile:
         st.info(f"🌟 Your Karma: **{profile['karma']}**")
 
+    # -------------------------
+    # Filter section
+    # -------------------------
+    st.write("Filter by category")
+    filter_col1, filter_col2 = st.columns(2)
+
+    with filter_col1:
+        selected_category = st.selectbox(
+            "Category",
+            ["All"] + list(helpers.CATEGORIES.keys()),
+            index=0
+        )
+
+    with filter_col2:
+        if selected_category != "All":
+            subcategories = ["All"] + helpers.CATEGORIES[selected_category]
+        else:
+            subcategories = ["All"]
+        selected_subcategory = st.selectbox("Subcategory", subcategories, index=0)
+
     # Tabs for separation
     tabs = st.tabs(["🙏 Requests", "🤗 Offers"])
 
@@ -132,22 +155,39 @@ def main():
     # -------------------------
     with tabs[0]:
         requests = crud.get_all_requests(db, exclude_profile_id=profile_id)
+
+        
+
+        # Apply filters
+        if selected_category != "All":
+            requests = [r for r in requests if r.get("category") == selected_category]
+        if selected_subcategory != "All":
+            requests = [r for r in requests if r.get("subcategory") == selected_subcategory]
+
         if requests:
             for req in requests:
                 display_feed_item(db, profile_id, req, item_type="request")
         else:
-            st.info("No requests available right now.")
+            st.info("No requests available for the selected filter.")
 
     # -------------------------
     # Offers Tab
     # -------------------------
     with tabs[1]:
         offers = crud.get_all_offers(db, exclude_profile_id=profile_id)
+
+        # Apply filters
+        if selected_category != "All":
+            offers = [o for o in offers if o.get("category") == selected_category]
+        if selected_subcategory != "All":
+            offers = [o for o in offers if o.get("subcategory") == selected_subcategory]
+
         if offers:
             for off in offers:
                 display_feed_item(db, profile_id, off, item_type="offer")
         else:
-            st.info("No offers available right now.")
+            st.info("No offers available for the selected filter.")
+
 
 
 if __name__ == "__main__":
