@@ -116,32 +116,38 @@ def display_feed_item(db, caller_id, item, item_type="request"):
 
         # ---- Report Post section ----
         report_toggle_key = f"{item_type}_report_toggle_{item['id']}"
-        submit_key = f"{item_type}_submit_{item['id']}"
+        report_button_key = f"{item_type}_report_button_{item['id']}"
+        reason_key = f"{item_type}_reason_{item['id']}"
 
-        # First button activates "report mode"
-        if st.button("⚠️ Report Post", key=f"{item_type}_report_{item['id']}"):
-            st.session_state[report_toggle_key] = True
+        # Initialize toggle
+        if report_toggle_key not in st.session_state:
+            st.session_state[report_toggle_key] = False
 
-        # If in report mode, show input + submit
-        if st.session_state.get(report_toggle_key, False):
-            reason_key = f"{item_type}_reason_{item['id']}"
-            reason = st.text_input("Reason for reporting (optional)", key=reason_key)
+        # Right-aligned report button
+        col1, col2 = st.columns([3, 1])
+        with col2:
+            if st.button("⚠️ Report Post", key=report_button_key):
+                st.session_state[report_toggle_key] = True
 
-            if st.button("Submit Report", key=submit_key):
-                try:
-                    crud.report_post(
-                        db,
-                        reporter_id=caller_id,
-                        post_type=item_type,
-                        post_id=item["id"],
-                        reason=reason
-                    )
-                    st.success("✅ Post reported successfully!")
-                    # Reset report mode
-                    st.session_state[report_toggle_key] = False
-                except Exception as e:
-                    st.error(f"❌ Could not report post: {str(e)}")
-        
+        # Show form if toggled
+        if st.session_state[report_toggle_key]:
+            with st.form(key=f"{item_type}_report_form_{item['id']}"):
+                reason = st.text_input("Reason for reporting (optional)", key=reason_key)
+                submitted = st.form_submit_button("Submit Report")
+                if submitted:
+                    try:
+                        crud.report_post(
+                            db,
+                            reporter_id=caller_id,
+                            post_type=item_type,
+                            post_id=item["id"],
+                            reason=reason
+                        )
+                        st.success("✅ Post reported successfully!")
+                        st.session_state[report_toggle_key] = False
+                    except Exception as e:
+                        st.error(f"❌ Could not report post: {str(e)}")
+
 
 
 def main():
