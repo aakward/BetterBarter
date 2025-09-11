@@ -21,7 +21,8 @@ def create_signed_url(db, bucket: str, file_name: str, expires_sec: int = 60 * 6
 
 def display_feed_item(db, caller_id, item, item_type="request"):
     """
-    Display a single request or offer in a card-like layout with karma info.
+    Display a single request or offer in a card-like layout with karma info,
+    match request section, and report post functionality.
     """
     profile = crud.get_profile(db, item["profile_id"])
     icon = "🙏" if item_type == "request" else "🤗"
@@ -39,10 +40,10 @@ def display_feed_item(db, caller_id, item, item_type="request"):
                     st.image(url, width=150, caption=f"{profile['full_name']}'s image")
 
         with col_info:
-            # Title + Type Badge
-            st.markdown(f"### {item['title']}  <span style='font-size:0.9em; color:#888;'>{icon}</span>", unsafe_allow_html=True)
-            
-            # Profile + Karma Badge
+            st.markdown(
+                f"### {item['title']}  <span style='font-size:0.9em; color:#888;'>{icon}</span>",
+                unsafe_allow_html=True
+            )
             st.markdown(
                 f"<span style='color:#555; font-size:0.9em;'>"
                 f"👤 {profile['full_name']} | 📍 {profile['postal_code']} | 🌟 Karma: {profile.get('karma', 0)}<br>"
@@ -50,14 +51,12 @@ def display_feed_item(db, caller_id, item, item_type="request"):
                 f"</span>",
                 unsafe_allow_html=True
             )
-
-            # Description
             if item.get("description"):
                 st.markdown(f"**Description:** {item['description']}")
 
         st.markdown("---")
 
-        # ---- Bottom row: match request section ----
+        # ---- Match request section ----
         existing_match = crud.get_existing_match_request(
             db,
             initiator_id=caller_id,
@@ -65,10 +64,10 @@ def display_feed_item(db, caller_id, item, item_type="request"):
             offer_id=item["id"] if item_type == "offer" else None
         )
 
+        toggle_key = f"{item_type}_toggle_{item['id']}"
         if existing_match:
             st.success("✅ Match request sent")
         else:
-            toggle_key = f"{item_type}_toggle_{item['id']}"
             if st.button("📩 Send Match Request", key=f"{item_type}_btn_{item['id']}"):
                 st.session_state[toggle_key] = True
 
@@ -114,6 +113,35 @@ def display_feed_item(db, caller_id, item, item_type="request"):
                                 st.session_state[toggle_key] = False
                         except Exception as e:
                             st.error(f"❌ {str(e)}")
+
+        # ---- Report Post section ----
+        report_toggle_key = f"{item_type}_report_toggle_{item['id']}"
+        submit_key = f"{item_type}_submit_{item['id']}"
+
+        # First button activates "report mode"
+        if st.button("⚠️ Report Post", key=f"{item_type}_report_{item['id']}"):
+            st.session_state[report_toggle_key] = True
+
+        # If in report mode, show input + submit
+        if st.session_state.get(report_toggle_key, False):
+            reason_key = f"{item_type}_reason_{item['id']}"
+            reason = st.text_input("Reason for reporting (optional)", key=reason_key)
+
+            if st.button("Submit Report", key=submit_key):
+                try:
+                    crud.report_post(
+                        db,
+                        reporter_id=caller_id,
+                        post_type=item_type,
+                        post_id=item["id"],
+                        reason=reason
+                    )
+                    st.success("✅ Post reported successfully!")
+                    # Reset report mode
+                    st.session_state[report_toggle_key] = False
+                except Exception as e:
+                    st.error(f"❌ Could not report post: {str(e)}")
+        
 
 
 def main():

@@ -698,3 +698,56 @@ def toggle_offer_active(supabase_client: SupabaseClient, offer_id: int, is_activ
 
 def toggle_request_active(supabase_client: SupabaseClient, request_id: int, is_active: bool):
     return update_request(supabase_client, request_id, is_active=is_active)
+
+
+def report_post(
+    supabase_client,
+    reporter_id: str,
+    post_type: str,       # "offer" or "request"
+    post_id: int,
+    reason: str = None
+):
+    """
+    Report a post and also update the owner's profile reports.
+    """
+    table_name = "offers" if post_type == "offer" else "requests"
+
+    # Fetch post
+    resp = supabase_client.table(table_name).select("*").eq("id", post_id).execute()
+    if not resp.data:
+        raise Exception(f"{post_type.capitalize()} not found")
+
+    post = resp.data[0]
+    owner_id = post["profile_id"]
+
+    report_entry = {
+        "reporter_id": reporter_id,
+        "reason": reason,
+        "timestamp": datetime.datetime.utcnow().isoformat()
+    }
+
+    # Normalize to empty list if None
+    post_reports = post.get("reports") or []
+    profile_resp = supabase_client.table("profiles").select("*").eq("id", owner_id).execute()
+    if not profile_resp.data:
+        raise Exception("Owner profile not found")
+
+    owner_profile = profile_resp.data[0]
+    owner_reports = owner_profile.get("reports") or []
+
+    #Update the post's reports
+
+
+    post_reports = post.get("reports") or []
+    update_resp=supabase_client.table(table_name).update({
+        "reports": post_reports + [report_entry]
+    }).eq("id", post_id).execute()
+
+    print("Update response:", update_resp)
+
+    # Update owner's profile reports
+    supabase_client.table("profiles").update({
+        "reports": owner_reports + [report_entry]
+    }).eq("id", owner_id).execute()
+
+    return report_entry

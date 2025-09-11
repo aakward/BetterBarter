@@ -5,6 +5,8 @@ from sqlalchemy.sql import func
 from data.db import Base
 import enum
 from datetime import datetime
+from sqlalchemy.dialects.postgresql import JSONB
+
 
 
 # -----------------------------
@@ -32,6 +34,7 @@ class Profile(Base):
     karma = Column(Integer, default=0)
     daily_match_count = Column(Integer, default=0)
     daily_match_count_reset = Column(DateTime, default=datetime.utcnow)
+    reports = Column(JSONB, default=list, nullable=True)
 
     offers = relationship("Offer", back_populates="profile")
     requests = relationship("Request", back_populates="profile")
@@ -54,7 +57,8 @@ class Offer(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     image_file_name = Column(Text, nullable=True)
-    
+    reports = Column(JSONB, default=list, nullable=True)
+  
     profile = relationship("Profile", back_populates="offers")
     matches = relationship("Match", back_populates="offer")
     match_requests = relationship("MatchRequest", back_populates="offer")
@@ -76,7 +80,8 @@ class Request(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     image_file_name = Column(Text, nullable=True)
-    
+    reports = Column(JSONB, default=list, nullable=True)
+
     profile = relationship("Profile", back_populates="requests")
     matches = relationship("Match", back_populates="request")
     match_requests = relationship("MatchRequest", back_populates="request")

@@ -4,19 +4,19 @@ def main():
     st.title("Welcome to betterBarter!")
 
     st.markdown("""
-    Welcome to **betterBarter**!  
-    We’re building a community where people help each other by **sharing, exchanging, lending, or gifting**.  
+    We’re glad you’re here! BetterBarter is a community space where people can **share, exchange, lend, or request** things to help each other out.           
+    Whether it’s giving away a spare item, asking for a hand, lending tools, or setting up whatever arrangement works for both sides - it’s all about connecting and making life easier.  
     Here’s everything you need to know to get started.
     """)
 
     # How it Works
-    st.header("👋 How it Works")
+    st.header("How it Works")
     st.markdown("""
     1. **Post an offer** – something you’d like to give, lend, or share.  
     2. **Post a request** – something you need.  
     3. **Browse the feed** – see offers and requests from others.  
-    4. **Send a match request** – or accept matches sent out by other community members.  
-    5. **Agree on the exchange** – it can be a gift, a swap, a loan, or even involve payment if both sides agree.  
+    4. **Send a match request** – or accept matches sent by community members.  
+    5. **Agree on the arrangement** – it could be a gift, a swap, a loan, or even involve payment if both sides agree.  
     """)
 
     st. write("---")
@@ -29,7 +29,7 @@ def main():
         **2. Do I need both an offer *and* a request?**  
         No. You can post only offers, only requests, or both. You can also browse and respond directly to others without posting anything yourself.  
 
-        **3. Can I ask for money?**  
+        **3. Is it okay to request money or a repayment when sharing or lending something?**  
         Yes, but it’s optional. You can mention a payment or lending arrangement in your post description, but it’s not the core of the platform.  
 
         **4. Who can see my contact details?**  
