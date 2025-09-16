@@ -82,7 +82,7 @@ def main():
                     crud.update_match_request_status(db, r.id, "approved")
                     st.success("Match approved! Both parties gained karma.")
                 if col2.button("❌ Decline", key=f"decline_{r.id}"):
-                    crud.update_match_request_status(db, r.id, "declined")
+                    crud.update_match_request_status(db, r.id, "rejected")
                     st.warning("Match request declined.")
     else:
         st.info("No incoming match requests yet.")

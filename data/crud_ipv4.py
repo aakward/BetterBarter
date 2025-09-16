@@ -327,6 +327,9 @@ def create_match_request(
     else:
         raise Exception("Invalid initiator_type. Must be 'request' or 'offer'.")
 
+    if requester_id == offerer_id:
+        raise Exception("Cannot send a match request to your own item")
+
     # --- Prevent duplicate match requests ---
     if get_existing_match_request(supabase_client, initiator_id=caller_id, request_id=request_id, offer_id=offer_id):
         raise Exception("You have already sent a match request here.")
@@ -674,21 +677,11 @@ def accept_match_request(
 def decline_match_request(supabase_client: SupabaseClient, match_request_id: int, profile_id: str):
     """
     Decline a match request. 
-    Updates status to 'declined' instead of deleting.
-    Only the offerer can decline.
+    Updates status to 'rejected' instead of deleting.
     """
-    resp = supabase_client.table("match_requests")\
-        .select("*")\
-        .eq("id", match_request_id)\
-        .eq("offerer_id", profile_id)\
-        .execute()
 
-    match_req = resp.data[0] if not resp.error and resp.data else None
-    if not match_req:
-        return None
-
-    # Update status → declined
-    updated = update_match_request_status(supabase_client, match_request_id, MatchStatus.declined)
+    # Update status → rejected
+    updated = update_match_request_status(supabase_client, match_request_id, MatchStatus.rejected, profile_id)
 
     return updated
 
@@ -739,11 +732,9 @@ def report_post(
 
 
     post_reports = post.get("reports") or []
-    update_resp=supabase_client.table(table_name).update({
+    supabase_client.table(table_name).update({
         "reports": post_reports + [report_entry]
     }).eq("id", post_id).execute()
-
-    print("Update response:", update_resp)
 
     # Update owner's profile reports
     supabase_client.table("profiles").update({

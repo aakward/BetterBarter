@@ -140,14 +140,6 @@ def build_ui_match_from_offer_request_pair(offer: dict, request: dict, score=0) 
     Build a UIMatch object from an offer and request dict returned by Supabase.
     Both dicts are enriched with profile data in get_potential_matches.
     """
-    def get_profile(profile_data):
-        if not profile_data:
-            return None
-        if isinstance(profile_data, list):
-            return profile_data[0] if profile_data else None
-        if isinstance(profile_data, dict):
-            return profile_data
-        return None
 
     offer_profile = get_profile(offer.get("profiles"))
     request_profile = get_profile(request.get("profiles"))
@@ -156,6 +148,8 @@ def build_ui_match_from_offer_request_pair(offer: dict, request: dict, score=0) 
         id=None,  # potential matches don’t exist yet in match_requests
         offer_id=offer.get("id"),
         request_id=request.get("id"),
+        requester_id=request_profile.get("id"),
+        offerer_id=offer_profile.get("id"),
         offer_description=offer.get("description"),
         request_description=request.get("description"),
         offer_image=offer.get("image_file_name"),
@@ -182,12 +176,11 @@ def build_ui_match_from_offer_request_pair(offer: dict, request: dict, score=0) 
 
 
 
-
 def get_profile(profile_data):
-    if not profile_data:
+        if not profile_data:
+            return None
+        if isinstance(profile_data, list):
+            return profile_data[0] if profile_data else None
+        if isinstance(profile_data, dict):
+            return profile_data
         return None
-    if isinstance(profile_data, list) and len(profile_data) > 0:
-        return profile_data[0]
-    if isinstance(profile_data, dict):
-        return profile_data
-    return None

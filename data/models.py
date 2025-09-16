@@ -15,7 +15,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 class MatchStatus(enum.Enum):
     pending = "pending"
     accepted = "accepted"
-    declined = "declined"
+    rejected = "rejected"
     completed = "completed"
 
 # -----------------------------
