@@ -211,9 +211,19 @@ def mark_request_matched(supabase_client: SupabaseClient, request_id: int):
 # AUTHENTICATION via Supabase
 # -----------------------------
 def authenticate_user(supabase_client: SupabaseClient, email: str, password: str):
-    response = supabase_client.auth.sign_in_with_password({"email": email, "password": password})
-    return response.user if response.user else None
-
+    """
+    Logs in the user and returns the full AuthResponse so that
+    session tokens can be stored for persistent login.
+    """
+    response = supabase_client.auth.sign_in_with_password({
+        "email": email,
+        "password": password
+    })
+    
+    # Return the full response, not just the user
+    if getattr(response, "user", None):
+        return response
+    return None
 
 # -----------------------------
 # Karma system helper

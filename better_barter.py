@@ -14,7 +14,7 @@ PAGES = {
     "My Offers": offers_ipv4,
     "My Requests": requests_ipv4,
     "Matches": matches_ipv4,
-    "Community Feed": feeds_ipv4
+    "Discover": feeds_ipv4
 }
 
 def set_sidebar():
@@ -42,7 +42,7 @@ def set_sidebar():
 
     st.sidebar.markdown("---")
 
-    st.sidebar.markdown(f"**App Version:** 1.0.7")
+    st.sidebar.markdown(f"**App Version:** 1.0.8")
 
     return selected
 

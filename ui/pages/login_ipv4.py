@@ -2,14 +2,10 @@ import streamlit as st
 from data import crud_ipv4 as crud
 from data.db_ipv4 import get_db
 from utils import auth, helpers
-from supabase import create_client, Client
 
-# Initialize Supabase client
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_ANON_KEY = st.secrets["SUPABASE_ANON_KEY"]
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
-
-
+# -------------------------
+# Main login/register page
+# -------------------------
 def main():
     st.title("🔑 Login / Register")
 
@@ -19,20 +15,17 @@ def main():
     db = get_db()
 
     # -------------------------
-    # Already logged in (refresh session if needed)
+    # Already logged in
     # -------------------------
-    try:
-        user = auth.ensure_authenticated(db, required=False)
+    user = auth.ensure_authenticated(required=False)
+    if user:
         profile = crud.get_profile(db, user.id)
         if profile:
             st.success(f"Welcome back, **{profile['full_name']}**!")
         if st.button("Log out"):
-            auth.logout_user(db)
+            auth.logout_user()
             helpers.rerun()
         st.stop()
-    except Exception:
-        # Not logged in (ensure_authenticated failed)
-        pass
 
     # -------------------------
     # Tabs: Login / Register
@@ -53,10 +46,20 @@ def main():
                 if not email or not password:
                     st.error("Email and password are required.")
                 else:
-                    user = crud.authenticate_user(db, email=email, password=password)
-                    if user:
-                        auth.login_user(user.id)
-                        profile = crud.get_profile(db, user.id)
+                    db = get_db()
+                    try:
+                        # Use Supabase sign_in_with_password for persistent session
+                        auth_resp = db.auth.sign_in_with_password({
+                            "email": email,
+                            "password": password
+                        })
+                    except Exception:
+                        st.error("Invalid email or password.")
+                        auth_resp = None
+
+                    if auth_resp and getattr(auth_resp, "user", None):
+                        auth.login_user(auth_resp)
+                        profile = crud.get_profile(db, auth_resp.user.id)
                         if profile:
                             st.success(f"Logged in as {profile['full_name']}")
                         helpers.rerun()
@@ -90,22 +93,23 @@ def main():
                 elif password != confirm_pw:
                     st.error("Passwords do not match.")
                 else:
-                    supabase_user = supabase.auth.sign_up({
+                    db = get_db()
+                    auth_resp = db.auth.sign_up({
                         "email": email,
                         "password": password,
                     })
 
-                    if supabase_user.user:
+                    if getattr(auth_resp, "user", None):
                         profile = crud.create_profile(
                             supabase_client=db,
-                            supabase_id=supabase_user.user.id,
+                            supabase_id=auth_resp.user.id,
                             full_name=full_name,
                             postal_code=pin_code,
                             phone=phone,
-                            email=email, 
+                            email=email,
                             share_phone=share_phone
                         )
-                        auth.login_user(profile["id"])
+                        auth.login_user(auth_resp)
                         st.success(f"Account created! Welcome, {profile['full_name']}")
                         helpers.rerun()
                     else:

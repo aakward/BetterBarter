@@ -1,7 +1,7 @@
 import streamlit as st
 from data import crud_ipv4 as crud
-from data.db_ipv4 import get_db
 from utils import auth, helpers
+from data.db_ipv4 import get_db
 
 def main():
     st.title("👤 Profile")
@@ -9,20 +9,19 @@ def main():
     if "rerun_flag" not in st.session_state:
         st.session_state["rerun_flag"] = False
 
-    db = get_db()  # Supabase client
-    user = auth.ensure_authenticated(db)  # this will refresh/validate session
+    user = auth.ensure_authenticated()  # updated: no db argument
     profile_id = user.id
 
+    db = get_db()  # Supabase client (per-user)
 
     # Get current profile
     profile = crud.get_profile(db, profile_id)
     if not profile:
         st.error("Profile not found.")
         return
-    
+
     # Karma header
-    if profile:
-        st.info(f"🌟 Your Karma: **{profile['karma']}**")
+    st.info(f"🌟 Your Karma: **{profile.get('karma', 0)}**")
 
     st.subheader("Profile Details")
     st.write(f"**Full Name:** {profile.get('full_name', '—')}")
@@ -62,7 +61,7 @@ def main():
 
     st.write("---")
     if st.button("Log out"):
-        auth.logout_user(db)
+        auth.logout_user()  # updated: no db argument
         st.success("Logged out successfully.")
         helpers.rerun()
 
