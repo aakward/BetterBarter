@@ -43,12 +43,13 @@ def format_contact_info(profile, contact=None):
     - profile: user profile object with 'share_phone' and 'phone'
     """
     lines = []
+
     if contact and contact.get("mode") and contact.get("value"):
-        lines.append(f"{contact['mode']}: {contact['value']}")
-    if getattr(profile, "share_phone", False) and getattr(profile, "phone", None):
+        lines.append(f"{contact['mode']}: {contact['value']} (preferred)")
+    if profile.share_phone and profile.phone:
         lines.append(f"Phone (from profile): {profile.phone}")
     if not lines:
-        lines.append(f"Email: {getattr(profile, 'email', '-')}")
+        lines.append(f"Email: {profile.email}")
     return "<br>".join(lines)
 
 

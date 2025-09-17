@@ -17,7 +17,8 @@ class UserEmailObj:
     def __init__(self, profile: dict):
         self.email = profile.get("email")
         self.name = profile.get("full_name")
-        self.phone = profile.get("phone")  # optional, adjust if you store unhashed
+        self.phone = profile.get("phone")  
+        self.share_phone=profile.get("share_phone")
 
 # -----------------------------
 # PROFILE CRUD
