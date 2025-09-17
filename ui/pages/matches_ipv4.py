@@ -36,8 +36,8 @@ def main():
     # -------------------------
     tabs = st.tabs([
         "💡 Potential Matches",
-        "📤 Sent Requests",
-        "📥 Received Requests",
+        "📤 Sent Match Requests",
+        "📥 Received Match Requests",
         "🎯 Completed Matches"
     ])
 
@@ -131,10 +131,11 @@ def main():
             st.info("No matched requests yet!")
 
         st.write("---")
-        st.subheader(f"❌ Declined Requests ({len(rejected_requests)})")
-        for idx, match_req in enumerate(rejected_requests):
-            ui_match = build_ui_match_from_match_request(match_req, db) if isinstance(match_req, dict) else match_req
-            display_match(db, ui_match, section="matched", profile_id=profile_id, idx=idx + 10000)
+        if rejected_requests:
+            st.subheader(f"❌ Declined Requests ({len(rejected_requests)})")
+            for idx, match_req in enumerate(rejected_requests):
+                ui_match = build_ui_match_from_match_request(match_req, db) if isinstance(match_req, dict) else match_req
+                display_match(db, ui_match, section="matched", profile_id=profile_id, idx=idx + 10000)
 
 
 # -------------------------
