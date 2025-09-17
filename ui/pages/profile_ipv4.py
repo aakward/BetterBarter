@@ -50,7 +50,7 @@ def main():
             if new_pin != profile.get('postal_code'):
                 update_data["postal_code"] = new_pin
             if phone:
-                update_data["phone_hash"] = helpers.hash_phone(phone)
+                update_data["phone"] = phone
             update_data["share_phone"] = share_phone
 
             if update_data:
