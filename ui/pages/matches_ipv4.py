@@ -120,13 +120,21 @@ def main():
         ).execute().data
 
         matched_requests = [m for m in all_matches if m.get("status") in ("accepted", "completed")]
-        st.subheader(f"Completed Matches ({len(matched_requests)})")
+        rejected_requests = [m for m in all_matches if m.get("status") == "rejected"]
+
+        st.subheader(f"🙌 Successful Matches ({len(matched_requests)})")
         if matched_requests:
             for idx, match_req in enumerate(matched_requests):
                 ui_match = build_ui_match_from_match_request(match_req, db) if isinstance(match_req, dict) else match_req
                 display_match(db, ui_match, section="matched", profile_id=profile_id, idx=idx)
         else:
             st.info("No matched requests yet!")
+
+        st.write("---")
+        st.subheader(f"❌ Declined Requests ({len(rejected_requests)})")
+        for idx, match_req in enumerate(rejected_requests):
+            ui_match = build_ui_match_from_match_request(match_req, db) if isinstance(match_req, dict) else match_req
+            display_match(db, ui_match, section="matched", profile_id=profile_id, idx=idx + 10000)
 
 
 # -------------------------
@@ -288,21 +296,25 @@ def display_match(db: Client, match: UIMatch, section: str, profile_id: str, idx
                     st.warning("Request declined!")
 
         elif section == "matched":
-            st.success("✅ Matched / Completed")
-            if profile_id == match.requester_id:
-                other_name = match.offer_user_name
-                other_contact_mode = match.offerer_contact_mode
-                other_contact_value = match.offerer_contact_value
-            elif profile_id == match.offerer_id:
-                other_name = match.request_user_name
-                other_contact_mode = match.requester_contact_mode
-                other_contact_value = match.requester_contact_value
+            if match.status == "rejected":
+                st.warning("❌ Match Request Declined")
+                st.caption("This match request was declined. No further action is possible.")
             else:
-                other_name = "-"
-                other_contact_mode = "-"
-                other_contact_value = "-"
+                st.success("✅ Matched / Completed")
+                if profile_id == match.requester_id:
+                    other_name = match.offer_user_name
+                    other_contact_mode = match.offerer_contact_mode
+                    other_contact_value = match.offerer_contact_value
+                elif profile_id == match.offerer_id:
+                    other_name = match.request_user_name
+                    other_contact_mode = match.requester_contact_mode
+                    other_contact_value = match.requester_contact_value
+                else:
+                    other_name = "-"
+                    other_contact_mode = "-"
+                    other_contact_value = "-"
 
-            st.markdown(f"📞 **Contact {other_name or '-'}**: {other_contact_value or '-'} ({other_contact_mode or '-'})")
+                st.markdown(f"📞 **Contact {other_name or '-'}**: {other_contact_value or '-'} ({other_contact_mode or '-'})")
 
 
 if __name__ == "__main__":
