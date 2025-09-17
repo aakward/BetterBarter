@@ -31,7 +31,10 @@ def set_sidebar():
     st.sidebar.markdown(
         """
         <div style='text-align: center; font-size: 16px;'>
-            Created with <span style='color:red;'>❤️</span> by <b>Aakash Banik</b>
+            Crafted with <span style='color:red;'>❤️</span> by <b>Aakash Banik</b><br>
+            <a href='https://www.linkedin.com/in/aakashbanik/' target='_blank' style='text-decoration:none; font-size:14px; color:#0077B5;'>
+                Connect on LinkedIn
+            </a>
         </div>
         """,
         unsafe_allow_html=True
