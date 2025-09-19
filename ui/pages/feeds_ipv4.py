@@ -154,7 +154,7 @@ def main():
     st.title("📰 Feeds")
 
     db = get_db()
-    user = auth.ensure_authenticated()
+    user = auth.ensure_authenticated(db=db)
     profile_id = user.id
 
     profile = crud.get_profile(db, profile_id)

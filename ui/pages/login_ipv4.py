@@ -17,7 +17,7 @@ def main():
     # -------------------------
     # Already logged in
     # -------------------------
-    user = auth.ensure_authenticated(required=False)
+    user = auth.ensure_authenticated(db=db,required=False)
     if user:
         profile = crud.get_profile(db, user.id)
         if profile:

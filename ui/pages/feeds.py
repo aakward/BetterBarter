@@ -21,7 +21,7 @@ def create_signed_url(db, bucket: str, file_name: str, expires_sec: int = 60 * 6
 def main():
     st.title("📰 Feeds")
 
-    user = auth.ensure_authenticated()
+    user = auth.ensure_authenticated(db=db)
     profile_id = user.id
 
     db = next(get_db())

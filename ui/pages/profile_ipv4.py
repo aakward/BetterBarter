@@ -9,10 +9,10 @@ def main():
     if "rerun_flag" not in st.session_state:
         st.session_state["rerun_flag"] = False
 
-    user = auth.ensure_authenticated()  # updated: no db argument
+    db = get_db()  # Supabase client (per-user)
+    user = auth.ensure_authenticated(db=db)  # updated: no db argument
     profile_id = user.id
 
-    db = get_db()  # Supabase client (per-user)
 
     # Get current profile
     profile = crud.get_profile(db, profile_id)

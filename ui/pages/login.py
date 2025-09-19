@@ -20,7 +20,7 @@ def main():
 
     # Already logged in
     try:
-        user = auth.ensure_authenticated()
+        user = auth.ensure_authenticated(db=db)
         profile = crud.get_profile(db, user.id)
         if profile:
             st.success(f"Welcome back, **{profile['full_name']}**!")

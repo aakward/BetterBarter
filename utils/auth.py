@@ -55,13 +55,13 @@ def logout_user():
     st.session_state.pop(SESSION_KEY_SESSION, None)
 
 
-def ensure_authenticated(required: bool = True):
+def ensure_authenticated(db: Client | None = None, required: bool = True):
     """
     Ensures the current Supabase session is valid.
     Returns the user object if valid.
     If required=False, returns None instead of stopping execution.
     """
-    db: Client = get_db()
+    db = db or get_db()
 
     try:
         user_resp = db.auth.get_user()
