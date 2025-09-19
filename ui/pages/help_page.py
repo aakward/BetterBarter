@@ -51,7 +51,7 @@ def main():
     """, unsafe_allow_html=True)
 
     # Title and subtitle
-    st.markdown("<div class='title'>✨ BetterBarter ✨</div>", unsafe_allow_html=True)
+    st.markdown("<div class='title'> BetterBarter </div>", unsafe_allow_html=True)
     st.markdown("<div class='subtitle'>Share • Exchange • Lend • Request</div>", unsafe_allow_html=True)
 
     # Intro info box
