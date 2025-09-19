@@ -1,55 +1,33 @@
 import streamlit as st
 
 def main():
-    # Page config
     st.set_page_config(page_title="BetterBarter", layout="wide", initial_sidebar_state="expanded")
 
-    # Custom CSS for colors, spacing, and fonts
+    # Unified CSS
     st.markdown("""
-        <style>
-            body {
-                background-color: #f9f9f9;
-                color: #333333;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            }
-            .title {
-                text-align: center;
-                color: #2C3E50;
-                font-size: 48px;
-                font-weight: bold;
-                margin-bottom: 0;
-            }
-            .subtitle {
-                text-align: center;
-                color: #555555;
-                font-size: 24px;
-                margin-top: 0;
-            }
-            .section-header {
-                color: #2E86C1;
-            }
-            .info-box {
-                padding: 15px;
-                border-radius: 10px;
-                background-color: #EAF2F8;
-                margin-bottom: 20px;
-            }
-            .closing-note {
-                text-align: center;
-                font-size: 18px;
-                color: #2C3E50;
-                margin-top: 30px;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-
-    # Title and subtitle
-    st.markdown("<div class='title'> BetterBarter </div>", unsafe_allow_html=True)
-    st.markdown("<div class='subtitle'>Share • Exchange • Lend • Request</div>", unsafe_allow_html=True)
-
-    # Intro
-    st.markdown("""
-        <style>
+    <style>
+        body {
+            background-color: #f9f9f9;
+            color: #333333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .title {
+            text-align: center;
+            color: #2C3E50;
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 0;
+        }
+        .subtitle {
+            text-align: center;
+            color: #555555;
+            font-size: 24px;
+            margin-top: 0;
+        }
+        .section-header {
+            color: #2E86C1;
+        }
+        /* Info box */
         div.info-box {
             padding: 15px;
             border-radius: 10px;
@@ -60,20 +38,32 @@ def main():
             color: #2C3E50;
         }
         [data-theme="dark"] div.info-box {
-            background-color: #1E1E1E;
+            background-color: #2C3E3E;  /* darker for dark mode */
             color: #F0F0F0;
         }
-        </style>
+        .closing-note {
+            text-align: center;
+            font-size: 18px;
+            color: #2C3E50;
+            margin-top: 30px;
+        }
+    </style>
+    """, unsafe_allow_html=True)
 
-        <div class='info-box'>
-        We’re glad you’re here! BetterBarter is a community space where people can 
-        <b>share, exchange, lend, or request</b> things to help each other out.<br>
-        Whether it’s giving away a spare item, asking for a hand, lending tools, or setting up 
-        whatever arrangement works for both sides - it’s all about connecting and making life easier.<br>
-        Here’s everything you need to know to get started.
-        </div>
-        """, unsafe_allow_html=True)
+    # Title and subtitle
+    st.markdown("<div class='title'>✨ BetterBarter ✨</div>", unsafe_allow_html=True)
+    st.markdown("<div class='subtitle'>Share • Exchange • Lend • Request</div>", unsafe_allow_html=True)
 
+    # Intro info box
+    st.markdown("""
+    <div class='info-box'>
+    We’re glad you’re here! BetterBarter is a community space where people can 
+    <b>share, exchange, lend, or request</b> things to help each other out.<br>
+    Whether it’s giving away a spare item, asking for a hand, lending tools, or setting up 
+    whatever arrangement works for both sides - it’s all about connecting and making life easier.<br>
+    Here’s everything you need to know to get started.
+    </div>
+    """, unsafe_allow_html=True)
 
     # How it Works
     st.markdown("<h2 class='section-header'>How it Works</h2>", unsafe_allow_html=True)
@@ -124,6 +114,5 @@ def main():
     # Closing note
     st.markdown("<div class='closing-note'>💙 Thanks for being part of the community! Together, we make exchanges easier, fairer, and friendlier.</div>", unsafe_allow_html=True)
 
-# Run app
 if __name__ == "__main__":
     main()
