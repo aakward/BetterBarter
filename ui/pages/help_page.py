@@ -59,8 +59,11 @@ def main():
     <div class='info-box'>
     We’re glad you’re here! BetterBarter is a community space where people can 
     <b>share, exchange, lend, or request</b> things to help each other out.<br>
+    
     Whether it’s giving away a spare item, asking for a hand, lending tools, or setting up 
     whatever arrangement works for both sides - it’s all about connecting and making life easier.<br>
+    
+                
     Here’s everything you need to know to get started.
     </div>
     """, unsafe_allow_html=True)
@@ -81,21 +84,43 @@ def main():
     with st.expander("❓ Frequently Asked Questions"):
         st.markdown("""
         **1. What can I post as an offer or request?**  
-        Items, services, skills, or your time.  
+        Items, services, skills, or even your time. You can also lend or borrow things.  
 
         **2. Do I need both an offer *and* a request?**  
-        No, you can post only offers, only requests, or both.  
+        No. You can post only offers, only requests, or both. You can also browse and respond directly to others without posting anything yourself.  
 
-        **3. Who can see my contact details?**  
-        Only shared after a confirmed match.  
+        **3. Is it okay to request money or a repayment when sharing or lending something?**  
+        Yes, but it’s optional. You can mention a payment or lending arrangement in your post description, but it’s not the core of the platform.  
 
-        **4. How do matches work?**  
-        - System suggests matches.  
-        - You can send match requests.  
-        - Contact details are exchanged once accepted.  
+        **4. Who can see my contact details?**  
+        Your contact info is **only shared when both sides confirm a match**.  
 
-        **5. What is the karma system?**  
-        Karma points are awarded for positive community interactions — giving, helping, completing exchanges.
+        **5. How do matches work?**  
+        - The system suggests matches between offers and requests.  
+        - You can also send a match request directly from the feed.  
+        - If the other person accepts, contact details are exchanged.  
+
+        **6. Can I edit or delete my posts?**  
+        Yes, at any time. Deleted posts disappear immediately.  
+
+        **7. What if I don’t find a match?**  
+        New posts are added all the time. Keep your posts active, update them, or browse the feed again later.  
+
+        **8. Is this like a marketplace?**  
+        Not exactly. betterBarter is about **community support first**. Payment is allowed, but not required.  
+
+        **9. How do I know I can trust other users?**  
+        We encourage clear descriptions, fair exchanges, and respectful communication. If something seems off, report it.  
+
+        **10. What is the karma system?**  
+        Karma points are awarded for positive community interactions — giving, helping, or completing exchanges. Karma helps others see you as a trusted member.  
+
+        **11. Can I just browse without posting?**  
+        Absolutely. You can explore offers and requests in the feed and even initiate a match without posting your own.  
+
+        **12. Who do I contact for help?**  
+        Reach us at betterbartercontact@gmail.com  
+        *(Yes, I know it’s a Gmail — still bootstrapping, not a corporate HQ… but we read every email! 📨)*  
         """)
 
     # Community Guidelines
