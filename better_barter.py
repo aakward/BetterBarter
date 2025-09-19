@@ -47,7 +47,7 @@ def set_sidebar():
     return selected
 
 def main():
-    st.set_page_config(page_title="Barter", layout="wide")
+    st.set_page_config(page_title="Barter", layout="wide", initial_sidebar_state="expanded")
     selected=set_sidebar()
     page = PAGES[selected]
 
