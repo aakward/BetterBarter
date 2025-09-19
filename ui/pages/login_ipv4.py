@@ -78,12 +78,13 @@ def main():
             password = st.text_input("Password", type="password")
             confirm_pw = st.text_input("Confirm Password", type="password")
             phone = st.text_input(
-                "WhatsApp Number (Phone Numbers would only be shared with matches once you approve a match request. "
-                "We will notify you via email when you have a match.)",
+                "Phone Number (No personal contact information would be shared with anyone unless you initiate or approve a match request. "
+                "We will notify you via email when you have a match or match request.)",
                 placeholder="+31101234567"
             )
             share_phone = st.checkbox(
-                "Share phone with matches without waiting for approval?", value=False
+                "Share the phone number **with matches** by default along with preferred mode of contact? "
+                "(You can choose a preferred mode of contact while sending and accepting match requests.)", value=False
             )
             submitted = st.form_submit_button("Register")
 
