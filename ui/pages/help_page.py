@@ -48,13 +48,32 @@ def main():
     st.markdown("<div class='subtitle'>Share • Exchange • Lend • Request</div>", unsafe_allow_html=True)
 
     # Intro
-    st.markdown("<div class='info-box'>"
-                "We’re glad you’re here! BetterBarter is a community space where people can "
-                "<b>share, exchange, lend, or request</b> things to help each other out.<br>"
-                "Whether it’s giving away a spare item, asking for a hand, lending tools, or setting up "
-                "whatever arrangement works for both sides - it’s all about connecting and making life easier.<br>"
-                "Here’s everything you need to know to get started."
-                "</div>", unsafe_allow_html=True)
+    st.markdown("""
+        <style>
+        div.info-box {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        [data-theme="light"] div.info-box {
+            background-color: #EAF2F8;
+            color: #2C3E50;
+        }
+        [data-theme="dark"] div.info-box {
+            background-color: #1E1E1E;
+            color: #F0F0F0;
+        }
+        </style>
+
+        <div class='info-box'>
+        We’re glad you’re here! BetterBarter is a community space where people can 
+        <b>share, exchange, lend, or request</b> things to help each other out.<br>
+        Whether it’s giving away a spare item, asking for a hand, lending tools, or setting up 
+        whatever arrangement works for both sides - it’s all about connecting and making life easier.<br>
+        Here’s everything you need to know to get started.
+        </div>
+        """, unsafe_allow_html=True)
+
 
     # How it Works
     st.markdown("<h2 class='section-header'>How it Works</h2>", unsafe_allow_html=True)
