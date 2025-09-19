@@ -17,7 +17,7 @@ def main():
     # Authentication
     # -------------------------
     db = get_db()
-    user = auth.ensure_authenticated(db)
+    user = auth.ensure_authenticated()
     profile_id = user.id
 
     profile = crud.get_profile(db, profile_id)

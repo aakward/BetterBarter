@@ -12,7 +12,7 @@ def main():
 
     db = next(get_db())
 
-    user = auth.ensure_authenticated(db)  # this will refresh/validate session
+    user = auth.ensure_authenticated()  # this will refresh/validate session
     profile_id = user.id
 
     # Get current profile
