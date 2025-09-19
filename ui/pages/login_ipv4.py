@@ -84,7 +84,7 @@ def main():
             )
             share_phone = st.checkbox(
                 "Share the phone number **with matches** by default along with preferred mode of contact? "
-                "(You can choose a preferred mode of contact while sending and accepting match requests.)", value=False
+                "(You can choose a preferred mode of contact while sending and accepting match requests.)", value=True
             )
             submitted = st.form_submit_button("Register")
 
