@@ -1,9 +1,22 @@
 import streamlit as st
 from ui.pages import login_ipv4, profile_ipv4, offers_ipv4, requests_ipv4, matches_ipv4, feeds_ipv4, help_page
 from streamlit_option_menu import option_menu
+import os
 
+if "SUPABASE_URL" not in st.secrets:
+    st.secrets["SUPABASE_URL"] = os.environ.get("SUPABASE_URL")
 
+if "SUPABASE_DB_URL" not in st.secrets:
+    st.secrets["SUPABASE_DB_URL"] = os.environ.get("SUPABASE_DB_URL")
 
+if "SUPABASE_ANON_KEY" not in st.secrets:
+    st.secrets["SUPABASE_ANON_KEY"] = os.environ.get("SUPABASE_ANON_KEY")
+
+if "SENDGRID_API_KEY" not in st.secrets:
+    st.secrets["SENDGRID_API_KEY"] = os.environ.get("SENDGRID_API_KEY")
+
+if "FROM_EMAIL" not in st.secrets:
+    st.secrets["FROM_EMAIL"] = os.environ.get("FROM_EMAIL")
 # -----------------------------
 # App Navigation
 # -----------------------------
