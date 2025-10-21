@@ -3,20 +3,6 @@ from ui.pages import login_ipv4, profile_ipv4, offers_ipv4, requests_ipv4, match
 from streamlit_option_menu import option_menu
 import os
 
-if "SUPABASE_URL" not in st.secrets:
-    st.secrets["SUPABASE_URL"] = os.environ.get("SUPABASE_URL")
-
-if "SUPABASE_DB_URL" not in st.secrets:
-    st.secrets["SUPABASE_DB_URL"] = os.environ.get("SUPABASE_DB_URL")
-
-if "SUPABASE_ANON_KEY" not in st.secrets:
-    st.secrets["SUPABASE_ANON_KEY"] = os.environ.get("SUPABASE_ANON_KEY")
-
-if "SENDGRID_API_KEY" not in st.secrets:
-    st.secrets["SENDGRID_API_KEY"] = os.environ.get("SENDGRID_API_KEY")
-
-if "FROM_EMAIL" not in st.secrets:
-    st.secrets["FROM_EMAIL"] = os.environ.get("FROM_EMAIL")
 # -----------------------------
 # App Navigation
 # -----------------------------
@@ -40,33 +26,31 @@ def set_sidebar():
             default_index=0
         )
 
-    st.sidebar.markdown("---")
-    st.sidebar.markdown(
-        """
-        <div style='text-align: center; font-size: 16px;'>
-            Crafted with <span style='color:red;'>❤️</span> by <b>Aakash Banik</b><br>
-            <a href='https://www.linkedin.com/in/aakashbanik/' target='_blank' style='text-decoration:none; font-size:14px; color:#0077B5;'>
-                Connect on LinkedIn
-            </a>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+        st.sidebar.markdown("---")
+        st.sidebar.markdown(
+            """
+            <div style='text-align: center; font-size: 16px;'>
+                Crafted with <span style='color:red;'>❤️</span> by <b>Aakash Banik</b><br>
+                <a href='https://www.linkedin.com/in/aakashbanik/' target='_blank' style='text-decoration:none; font-size:14px; color:#0077B5;'>
+                    Connect on LinkedIn
+                </a>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-    st.sidebar.markdown("---")
-
-    st.sidebar.markdown(f"**App Version:** 1.0.8")
+        st.sidebar.markdown("---")
+        st.sidebar.markdown(f"**App Version:** 1.0.8")
 
     return selected
 
 def main():
     st.set_page_config(page_title="Barter", layout="wide", initial_sidebar_state="expanded")
-    selected=set_sidebar()
+    selected = set_sidebar()
     page = PAGES[selected]
 
-    # Render selected page
+    
     page.main()
-
 
 if __name__ == "__main__":
     main()

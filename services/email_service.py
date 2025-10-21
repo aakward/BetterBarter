@@ -12,8 +12,8 @@ FROM_EMAIL = None
 # Try env vars first, fallback to st.secrets
 try:
     import streamlit as st
-    SENDGRID_API_KEY = st.secrets["SENDGRID_API_KEY"]
-    FROM_EMAIL = st.secrets["FROM_EMAIL"]
+    SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
+    FROM_EMAIL = os.environ.get("FROM_EMAIL")
 except Exception:
     SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
     FROM_EMAIL = os.getenv("FROM_EMAIL")
